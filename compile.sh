@@ -14,9 +14,8 @@ if [ $1 = "-d" ]; then
 	n=$(echo "$dump" | grep -n main | cut -d ":" -f 1)
 	dump=$(echo "$dump" | sed -n "$[ $n+1 ],\$p" | cut -c 7-17)
 	for t in $dump; do
-		/bin/echo -n "\x$t"
+		printf "\x$t" >> ${2%.o}
 	done
-	echo
 else
 	$CC -c -o ${1%.c}.o $1
 fi

@@ -1,10 +1,10 @@
 #ifndef __MAIN_H__
 #define __MAIN_H__
 
-typedef long qword;
-typedef int dword;
-typedef short word;
-typedef char byte;
+typedef unsigned long qword;
+typedef unsigned int dword;
+typedef unsigned short word;
+typedef unsigned char byte;
 
 struct Processor {
 	// general registers
@@ -29,6 +29,27 @@ struct Processor {
 	qword xer;
 };
 
+struct Storage {
+	void *mem;
+	long size;
+};
+
 extern struct Processor cpu;
+extern struct Storage code;
+
+/* 
+ * DS-FORM Instruction
+ * |0    |6   |11  |16           |30|
+ * |OPCD |RT  |RA  |DS           |XO|
+ *
+ * ld
+ */
+typedef struct {
+	byte opcd;
+	byte rt;
+	byte ra;
+	word ds;
+	byte xo;
+} ds_form;
 
 #endif // __MAIN_H__
