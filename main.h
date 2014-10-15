@@ -119,6 +119,21 @@ typedef struct {
 	int eh;
 } x_form_t;
 
+/* 
+ * XL-FORM Instruction
+ * |0    |6   |11  |16  |21      |31|
+ * |OPCD |BT  |BA  |BB  |XO      |LK|
+ * 
+ */
+typedef struct {
+	int opcd;
+	int bt;
+	int ba;
+	int bb;
+	int xo;
+	int lk;
+} xl_form_t;
+
 union inst_t {
 	i_form_t i;
 	b_form_t b;
@@ -126,6 +141,7 @@ union inst_t {
 	d_form_t d;
 	ds_form_t ds;
 	x_form_t x;
+	xl_form_t xl;
 };
 
 #endif // __MAIN_H__

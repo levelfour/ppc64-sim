@@ -57,6 +57,15 @@ void load_inst(union inst_t *inst, dword code) {
 			inst->x.xo		= ((code >> (32-31)) & 0x000003ff);
 			inst->x.eh		= ((code >> (32-32)) & 0x00000001);
 			break;
+		case 19:
+			// XL-Form
+			inst->xl.opcd	= ((code >> (32-6 )) & 0x0000007f);
+			inst->xl.bt		= ((code >> (32-11)) & 0x0000001f);
+			inst->xl.ba		= ((code >> (32-16)) & 0x0000001f);
+			inst->xl.bb		= ((code >> (32-21)) & 0x0000001f);
+			inst->xl.xo		= ((code >> (32-31)) & 0x000003ff);
+			inst->xl.lk		= ((code >> (32-32)) & 0x00000001);
+			break;
 	}
 }
 
@@ -76,6 +85,13 @@ char *disas(struct Storage *storage, int offset, char *asmcode) {
 			break;
 		case 15:
 			sprintf(asmcode, "addis r%d,r%d,%d", inst.d.rt, inst.d.ra, inst.d.d);
+			break;
+		case 19:
+			if(inst.xl.lk == 0) {
+				sprintf(asmcode, "bclr");
+			} else if(inst.xl.lk == 1) {
+				sprintf(asmcode, "bclrl");
+			}
 			break;
 		case 31:
 			switch(inst.x.xo) {
@@ -137,8 +153,13 @@ int main(int argc, char *argv[]) {
 	int i;
 	for(i = 0; i*4 < code.size; i++) {
 		char asmcode[32] = {0};
+		dword c = mem_read32(&code, i*4);
 		disas(&code, i*4, asmcode);
-		printf("%x: %s\n", mem_read32(&code, i*4), asmcode);
+		printf(" %02x %02x %02x %02x    %s\n",
+				(c >> 24) & 0xff,
+				(c >> 16) & 0xff,
+				(c >> 8) & 0xff,
+				c & 0xff, asmcode);
 	}
 
 	free(code.mem);
