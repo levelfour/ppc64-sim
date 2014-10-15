@@ -11,7 +11,7 @@ if [ $1 = "-d" ]; then
 		echo "error"
 		exit
 	fi
-	n=$(echo "$dump" | grep -n main | cut -d ":" -f 1)
+	n=$(echo "$dump" | grep -n main | head -n 1 | cut -d ":" -f 1)
 	dump=$(echo "$dump" | sed -n "$[ $n+1 ],\$p" | cut -c 7-17)
 	for t in $dump; do
 		printf "\x$t" >> ${2%.o}
