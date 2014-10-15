@@ -48,6 +48,15 @@ void load_inst(union inst_t *inst, dword code) {
 			inst->ds.ds		= ((code >> (32-30)) & 0x00003fff);
 			inst->ds.xo		= ((code >> (32-31)) & 0x00000003);
 			break;
+		case 31:
+			// X-Form
+			inst->x.opcd	= ((code >> (32-6 )) & 0x0000007f);
+			inst->x.rt		= ((code >> (32-11)) & 0x0000001f);
+			inst->x.ra		= ((code >> (32-16)) & 0x0000001f);
+			inst->x.rb		= ((code >> (32-21)) & 0x0000001f);
+			inst->x.xo		= ((code >> (32-31)) & 0x000003ff);
+			inst->x.eh		= ((code >> (32-32)) & 0x00000001);
+			break;
 	}
 }
 
@@ -67,6 +76,17 @@ char *disas(struct Storage *storage, int offset, char *asmcode) {
 			break;
 		case 15:
 			sprintf(asmcode, "addis r%d,r%d,%d", inst.d.rt, inst.d.ra, inst.d.d);
+			break;
+		case 31:
+			switch(inst.x.xo) {
+				case 444:
+					if(inst.x.rt == inst.x.rb) {
+						sprintf(asmcode, "mr r%d,r%d", inst.x.ra, inst.x.rt);
+					} else {
+						sprintf(asmcode, "or r%d,r%d,r%d", inst.x.ra, inst.x.rt, inst.x.rb);
+					}
+					break;
+			}
 			break;
 		case 32:
 			sprintf(asmcode, "lwz r%d,%d(r%d)", inst.ds.rt, inst.ds.ds<<2|inst.ds.xo, inst.ds.ra);

@@ -106,7 +106,7 @@ typedef struct {
 
 /* 
  * X-FORM Instruction
- * |0    |6   |11  |16  |21      |30|31
+ * |0    |6   |11  |16  |21      |31|
  * |OPCD |RT  |RA  |RB  |XO      |EH|
  * 
  */
