@@ -32,13 +32,13 @@ void load_inst(union inst_t *inst, dword code) {
 	switch(opcd) {
 		case 14:
 		case 15:
+		case 32:
 			// D-Form
 			inst->d.opcd	= ((code >> (32-6 )) & 0x0000007f);
 			inst->d.rt		= ((code >> (32-11)) & 0x0000001f);
 			inst->d.ra		= ((code >> (32-16)) & 0x0000001f);
 			inst->d.d		= ((code >> (32-32)) & 0x0000ffff);
 			break;
-		case 32:
 		case 58:
 		case 62:
 			// DS-Form
@@ -78,13 +78,13 @@ char *disas(struct Storage *storage, int offset, char *asmcode) {
 	switch(opcd) {
 		case 14:
 			if(inst.d.ra == 0) {
-				sprintf(asmcode, "li r%d,%d", inst.d.rt, inst.d.d);
+				sprintf(asmcode, "li\tr%d,%d", inst.d.rt, inst.d.d);
 			} else {
-				sprintf(asmcode, "addi r%d,r%d,%d", inst.d.rt, inst.d.ra, inst.d.d);
+				sprintf(asmcode, "addi\tr%d,r%d,%d", inst.d.rt, inst.d.ra, inst.d.d);
 			}
 			break;
 		case 15:
-			sprintf(asmcode, "addis r%d,r%d,%d", inst.d.rt, inst.d.ra, inst.d.d);
+			sprintf(asmcode, "addis\tr%d,r%d,%d", inst.d.rt, inst.d.ra, inst.d.d);
 			break;
 		case 19:
 			if(inst.xl.lk == 0) {
@@ -97,28 +97,28 @@ char *disas(struct Storage *storage, int offset, char *asmcode) {
 			switch(inst.x.xo) {
 				case 444:
 					if(inst.x.rt == inst.x.rb) {
-						sprintf(asmcode, "mr r%d,r%d", inst.x.ra, inst.x.rt);
+						sprintf(asmcode, "mr\tr%d,r%d", inst.x.ra, inst.x.rt);
 					} else {
-						sprintf(asmcode, "or r%d,r%d,r%d", inst.x.ra, inst.x.rt, inst.x.rb);
+						sprintf(asmcode, "or\tr%d,r%d,r%d", inst.x.ra, inst.x.rt, inst.x.rb);
 					}
 					break;
 			}
 			break;
 		case 32:
-			sprintf(asmcode, "lwz r%d,%d(r%d)", inst.ds.rt, inst.ds.ds<<2|inst.ds.xo, inst.ds.ra);
+			sprintf(asmcode, "lwz\tr%d,%d(r%d)", inst.d.rt, inst.d.d, inst.d.ra);
 			break;
 		case 58:
 			if(inst.ds.xo == 0) {
-				sprintf(asmcode, "ld r%d,%d(r%d)", inst.ds.rt, inst.ds.ds, inst.ds.ra);
+				sprintf(asmcode, "ld\tr%d,%d(r%d)", inst.ds.rt, inst.ds.ds, inst.ds.ra);
 			} else if(inst.ds.xo == 1) {
-				sprintf(asmcode, "ldu r%d,%d(r%d)", inst.ds.rt, inst.ds.ds, inst.ds.ra);
+				sprintf(asmcode, "ldu\tr%d,%d(r%d)", inst.ds.rt, inst.ds.ds, inst.ds.ra);
 			}
 			break;
 		case 62:
 			if(inst.ds.xo == 0) {
-				sprintf(asmcode, "std r%d,%d(r%d)", inst.ds.rt, inst.ds.ds, inst.ds.ra);
+				sprintf(asmcode, "std\tr%d,%d(r%d)", inst.ds.rt, inst.ds.ds, inst.ds.ra);
 			} else if(inst.ds.xo == 1) {
-				sprintf(asmcode, "stdu r%d,%d(r%d)", inst.ds.rt, inst.ds.ds, inst.ds.ra);
+				sprintf(asmcode, "stdu\tr%d,%d(r%d)", inst.ds.rt, inst.ds.ds, inst.ds.ra);
 			}
 			break;
 		default:
