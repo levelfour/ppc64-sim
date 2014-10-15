@@ -47,6 +47,7 @@ void load_inst(union inst_t *inst, dword code) {
 			inst->ds.ra		= ((code >> (32-16)) & 0x0000001f);
 			inst->ds.ds		= ((code >> (32-30)) & 0x00003fff);
 			inst->ds.xo		= ((code >> (32-31)) & 0x00000003);
+			inst->ds.ds = (inst->ds.ds << 18) >> 16;
 			break;
 		case 31:
 			// X-Form
