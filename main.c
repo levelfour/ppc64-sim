@@ -38,6 +38,7 @@ void load_inst(union inst_t *inst, dword code) {
 			inst->d.rt		= ((code >> (32-11)) & 0x0000001f);
 			inst->d.ra		= ((code >> (32-16)) & 0x0000001f);
 			inst->d.d		= ((code >> (32-32)) & 0x0000ffff);
+			inst->d.d = (inst->d.d << 16) >> 16;
 			break;
 		case 58:
 		case 62:
