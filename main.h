@@ -50,6 +50,6 @@ typedef struct {
 	byte ra;
 	word ds;
 	byte xo;
-} ds_form;
+} ds_form_t;
 
 #endif // __MAIN_H__
