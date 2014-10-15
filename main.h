@@ -135,13 +135,13 @@ typedef struct {
 } xl_form_t;
 
 union inst_t {
-	i_form_t i;
-	b_form_t b;
-	sc_form_t sc;
-	d_form_t d;
-	ds_form_t ds;
-	x_form_t x;
-	xl_form_t xl;
+	i_form_t	i;
+	b_form_t	b;
+	sc_form_t	sc;
+	d_form_t	d;
+	ds_form_t	ds;
+	x_form_t	x;
+	xl_form_t	xl;
 };
 
 #endif // __MAIN_H__

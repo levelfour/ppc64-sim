@@ -30,6 +30,11 @@ byte load_opcd(dword code) {
 void load_inst(union inst_t *inst, dword code) {
 	byte opcd = load_opcd(code);
 	switch(opcd) {
+		case 17:
+			inst->sc.opcd	= ((code >> (32-6 )) & 0x0000007f);
+			inst->sc.lev	= ((code >> (32-27)) & 0x0000007f);
+			inst->sc.one	= ((code >> (32-31)) & 0x00000001);
+			break;
 		case 14:
 		case 15:
 		case 32:
@@ -88,6 +93,13 @@ char *disas(struct Storage *storage, int offset, char *asmcode) {
 		case 15:
 			sprintf(asmcode, "addis\tr%d,r%d,%d", inst.d.rt, inst.d.ra, inst.d.d);
 			break;
+		case 17:
+			if(inst.sc.one == 1) {
+				sprintf(asmcode, "sc");
+			} else {
+				sprintf(asmcode, "? ; syscall");
+			}
+			break;
 		case 19:
 			if(inst.xl.lk == 0) {
 				sprintf(asmcode, "bclr");
@@ -102,6 +114,25 @@ char *disas(struct Storage *storage, int offset, char *asmcode) {
 						sprintf(asmcode, "mr\tr%d,r%d", inst.x.ra, inst.x.rt);
 					} else {
 						sprintf(asmcode, "or\tr%d,r%d,r%d", inst.x.ra, inst.x.rt, inst.x.rb);
+					}
+					break;
+				case 467:
+					switch(inst.x.rb << 5 | inst.x.ra) {
+						case 1:
+							sprintf(asmcode, "mtxer\tr%d", inst.x.rt);
+							break;
+						case 8:
+							sprintf(asmcode, "mtlr\tr%d", inst.x.rt);
+							break;
+						case 9:
+							sprintf(asmcode, "mtctr\tr%d", inst.x.rt);
+							break;
+						case 896:
+							sprintf(asmcode, "mtppr\tr%d", inst.x.rt);
+							break;
+						case 898:
+							sprintf(asmcode, "mtppr32\tr%d", inst.x.rt);
+							break;
 					}
 					break;
 			}
