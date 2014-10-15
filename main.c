@@ -96,12 +96,20 @@ char *disas(struct Storage *storage, int offset, char *asmcode) {
 		case 14:
 			if(inst.d.ra == 0) {
 				sprintf(asmcode, "li\t\tr%d,%d", inst.d.rt, inst.d.d);
+			} else if(inst.d.d < 0) {
+				sprintf(asmcode, "subi\tr%d,r%d,%d", inst.d.rt, inst.d.ra, -inst.d.d);
 			} else {
 				sprintf(asmcode, "addi\tr%d,r%d,%d", inst.d.rt, inst.d.ra, inst.d.d);
 			}
 			break;
 		case 15:
-			sprintf(asmcode, "addis\tr%d,r%d,%d", inst.d.rt, inst.d.ra, inst.d.d);
+			if(inst.d.ra == 0) {
+				sprintf(asmcode, "lis\tr%d,%d", inst.d.rt, inst.d.d);
+			} else if(inst.d.d < 0) {
+				sprintf(asmcode, "subis\tr%d,r%d,%d", inst.d.rt, inst.d.ra, -inst.d.d);
+			} else {
+				sprintf(asmcode, "addis\tr%d,r%d,%d", inst.d.rt, inst.d.ra, inst.d.d);
+			}
 			break;
 		case 16:
 			if(inst.b.bo == 12 && inst.b.bi == 0) {
