@@ -7,6 +7,7 @@
 
 struct Processor cpu;
 struct Storage code;
+struct Storage stack;
 
 int fexists(const char *filename) {
 	struct stat st;
@@ -28,6 +29,18 @@ dword mem_read32(struct Storage *storage, int offset) {
 		(p[offset+1] << 16) |
 		(p[offset+2] << 8) |
 		(p[offset+3]));
+}
+
+void mem_write64(struct Storage *storage, int offset, qword v) {
+	byte *p = storage->mem;
+	p[offset+0] = ((v >> 56) & 0xff);
+	p[offset+1] = ((v >> 48) & 0xff);
+	p[offset+2] = ((v >> 40) & 0xff);
+	p[offset+3] = ((v >> 32) & 0xff);
+	p[offset+4] = ((v >> 24) & 0xff);
+	p[offset+5] = ((v >> 16) & 0xff);
+	p[offset+6] = ((v >> 8 ) & 0xff);
+	p[offset+7] = ((v >> 0 ) & 0xff);
 }
 
 byte load_opcd(dword code) {
@@ -69,8 +82,8 @@ void load_inst(union inst_t *inst, dword code) {
 			inst->ds.rt		= ((code >> (32-11)) & 0x0000001f);
 			inst->ds.ra		= ((code >> (32-16)) & 0x0000001f);
 			inst->ds.ds		= ((code >> (32-30)) & 0x00003fff);
-			inst->ds.xo		= ((code >> (32-31)) & 0x00000003);
-			inst->ds.ds = (inst->ds.ds << 18) >> 16;
+			inst->ds.xo		= ((code >> (32-32)) & 0x00000003);
+			inst->ds.ds = (inst->ds.ds << 18) >> 18;
 			break;
 		case 31:
 			// X-Form
@@ -153,9 +166,9 @@ char *disas(struct Storage *storage, int offset, char *asmcode) {
 			switch(inst.x.xo) {
 				case 444:
 					if(inst.x.rt == inst.x.rb) {
-						sprintf(asmcode, "mr\tr%d,r%d", inst.x.ra, inst.x.rt);
+						sprintf(asmcode, "mr\t\tr%d,r%d", inst.x.ra, inst.x.rt);
 					} else {
-						sprintf(asmcode, "or\tr%d,r%d,r%d", inst.x.ra, inst.x.rt, inst.x.rb);
+						sprintf(asmcode, "or\t\tr%d,r%d,r%d", inst.x.ra, inst.x.rt, inst.x.rb);
 					}
 					break;
 				case 467:
@@ -184,16 +197,16 @@ char *disas(struct Storage *storage, int offset, char *asmcode) {
 			break;
 		case 58:
 			if(inst.ds.xo == 0) {
-				sprintf(asmcode, "ld\tr%d,%d(r%d)", inst.ds.rt, inst.ds.ds, inst.ds.ra);
+				sprintf(asmcode, "ld\t\tr%d,%d(r%d)", inst.ds.rt, inst.ds.ds << 2, inst.ds.ra);
 			} else if(inst.ds.xo == 1) {
-				sprintf(asmcode, "ldu\tr%d,%d(r%d)", inst.ds.rt, inst.ds.ds, inst.ds.ra);
+				sprintf(asmcode, "ldu\tr%d,%d(r%d)", inst.ds.rt, inst.ds.ds << 2, inst.ds.ra);
 			}
 			break;
 		case 62:
 			if(inst.ds.xo == 0) {
-				sprintf(asmcode, "std\tr%d,%d(r%d)", inst.ds.rt, inst.ds.ds, inst.ds.ra);
+				sprintf(asmcode, "std\tr%d,%d(r%d)", inst.ds.rt, inst.ds.ds << 2, inst.ds.ra);
 			} else if(inst.ds.xo == 1) {
-				sprintf(asmcode, "stdu\tr%d,%d(r%d)", inst.ds.rt, inst.ds.ds, inst.ds.ra);
+				sprintf(asmcode, "stdu\tr%d,%d(r%d)", inst.ds.rt, inst.ds.ds << 2, inst.ds.ra);
 			}
 			break;
 		default:
@@ -208,6 +221,14 @@ int exec(struct Storage *storage, int offset) {
 	byte opcd = load_opcd(code);
 	union inst_t inst;
 	load_inst(&inst, code);
+	
+	switch(opcd) {
+		case 62:
+			mem_write64(&stack, cpu.gpr[inst.ds.ra] + (inst.ds.ds << 2), cpu.gpr[inst.ds.rt]);
+			break;
+		default:
+			return -1;
+	}
 	return 0;
 }
 
@@ -229,13 +250,28 @@ int main(int argc, char *argv[]) {
 	}
 
 	code.size = fsize(fp);
-	code.mem =(void *) malloc(code.size);
+	code.mem = (void *)malloc(code.size);
 	if(code.mem == NULL) {
 		fprintf(stderr, "error: out of memory\n");
+		fclose(fp);
 		return EXIT_FAILURE;
 	} else {
-		printf("size = %ld\n", code.size);
+		printf("code size = %ld\n", code.size);
 		fread(code.mem, sizeof(byte), code.size, fp);
+	}
+
+	if(argc == 2) {
+		stack.size = STACK_SIZE;
+		stack.mem = (void *)malloc(stack.size);
+		if(stack.mem == NULL) {
+			fprintf(stderr, "error: out of memory\n");
+			fclose(fp);
+			free(code.mem);
+			return EXIT_FAILURE;
+		} else {
+			printf("stack size = %ld\n", stack.size);
+			cpu.gpr[1] = STACK_SIZE / 2;
+		}
 	}
 
 	int nip;
@@ -255,7 +291,8 @@ int main(int argc, char *argv[]) {
 		}
 	}
 
-	free(code.mem);
+	free(code.mem); code.mem = NULL;
+	if(argc == 2) { free(stack.mem); stack.mem = NULL; }
 	fclose(fp);
 
 	return EXIT_SUCCESS;
