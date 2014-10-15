@@ -38,18 +38,94 @@ extern struct Processor cpu;
 extern struct Storage code;
 
 /* 
- * DS-FORM Instruction
- * |0    |6   |11  |16           |30|
- * |OPCD |RT  |RA  |DS           |XO|
+ * I-FORM Instruction
+ * |0    |6                   |30|31|
+ * |OPCD |LI                  |AA|LK|
  *
- * ld
  */
 typedef struct {
-	byte opcd;
-	byte rt;
-	byte ra;
-	word ds;
-	byte xo;
+	int opcd;
+	int li;
+	int aa;
+	int lk;
+} i_form_t;
+
+/* 
+ * B-FORM Instruction
+ * |0    |6   |11  |16        |30|31|
+ * |OPCD |BO  |BI  |BD        |AA|LK|
+ *
+ */
+typedef struct {
+	int opcd;
+	int bo;
+	int bi;
+	int bd;
+	int aa;
+	int lk;
+} b_form_t;
+
+/* 
+ * SC-FORM Instruction
+ * |0    |6   |11  |16|20    |  |30|31|
+ * |OPCD |    |    |  |LEV   |  |1 |  |
+ *
+ */
+typedef struct {
+	int opcd;
+	int lev;
+	int one;
+} sc_form_t;
+
+/* 
+ * D-FORM Instruction
+ * |0    |6   |11  |16              |31
+ * |OPCD |RT  |RA  |D               |
+ *
+ */
+typedef struct {
+	int opcd;
+	int rt;
+	int ra;
+	int d;
+} d_form_t;
+
+/* 
+ * DS-FORM Instruction
+ * |0    |6   |11  |16           |30|31
+ * |OPCD |RT  |RA  |DS           |XO|
+ * 
+ */
+typedef struct {
+	int opcd;
+	int rt;
+	int ra;
+	int ds;
+	int xo;
 } ds_form_t;
+
+/* 
+ * X-FORM Instruction
+ * |0    |6   |11  |16  |21      |30|31
+ * |OPCD |RT  |RA  |RB  |XO      |EH|
+ * 
+ */
+typedef struct {
+	int opcd;
+	int rt;
+	int ra;
+	int rb;
+	int xo;
+	int eh;
+} x_form_t;
+
+union inst_t {
+	i_form_t i;
+	b_form_t b;
+	sc_form_t sc;
+	d_form_t d;
+	ds_form_t ds;
+	x_form_t x;
+};
 
 #endif // __MAIN_H__

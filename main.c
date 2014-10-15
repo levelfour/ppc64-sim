@@ -27,52 +27,62 @@ byte load_opcd(dword code) {
 	return ((code >> (31-6+1)) & 0x00000fff);
 }
 
-ds_form_t load_ds_form(dword code) {
-	ds_form_t inst;
-	inst.opcd	= ((code >> (31-6 +1)) & 0x0000007f);
-	inst.rt		= ((code >> (31-11+1)) & 0x0000001f);
-	inst.ra		= ((code >> (31-16+1)) & 0x0000001f);
-	inst.ds		= ((code >> (31-30+1)) & 0x00003fff);
-	inst.xo		= ((code >> (31-31+1)) & 0x00000003);
-	return inst;
+void load_inst(union inst_t *inst, dword code) {
+	byte opcd = load_opcd(code);
+	switch(opcd) {
+		case 14:
+		case 15:
+			// D-Form
+			inst->d.opcd	= ((code >> (32-6 )) & 0x0000007f);
+			inst->d.rt		= ((code >> (32-11)) & 0x0000001f);
+			inst->d.ra		= ((code >> (32-16)) & 0x0000001f);
+			inst->d.d		= ((code >> (32-32)) & 0x0000ffff);
+			break;
+		case 32:
+		case 58:
+		case 62:
+			// DS-Form
+			inst->ds.opcd	= ((code >> (32-6 )) & 0x0000007f);
+			inst->ds.rt		= ((code >> (32-11)) & 0x0000001f);
+			inst->ds.ra		= ((code >> (32-16)) & 0x0000001f);
+			inst->ds.ds		= ((code >> (32-30)) & 0x00003fff);
+			inst->ds.xo		= ((code >> (32-31)) & 0x00000003);
+			break;
+	}
 }
 
 char *disas(struct Storage *storage, int offset, char *asmcode) {
 	dword code = mem_read32(storage, offset);
 	byte opcd = load_opcd(code);
-	ds_form_t inst;
+	union inst_t inst;
+	load_inst(&inst, code);
 	
 	switch(opcd) {
 		case 14:
-			inst = load_ds_form(code);
-			if(inst.ra == 0) {
-				sprintf(asmcode, "li r%d,%d", inst.rt, inst.ds<<2|inst.xo);
+			if(inst.d.ra == 0) {
+				sprintf(asmcode, "li r%d,%d", inst.d.rt, inst.d.d);
 			} else {
-				sprintf(asmcode, "addi r%d,r%d,%d", inst.rt, inst.ra, inst.ds<<2|inst.xo);
+				sprintf(asmcode, "addi r%d,r%d,%d", inst.d.rt, inst.d.ra, inst.d.d);
 			}
 			break;
 		case 15:
-			inst = load_ds_form(code);
-			sprintf(asmcode, "addis r%d,r%d,%d", inst.rt, inst.ra, inst.ds<<2|inst.xo);
+			sprintf(asmcode, "addis r%d,r%d,%d", inst.d.rt, inst.d.ra, inst.d.d);
 			break;
 		case 32:
-			inst = load_ds_form(code);
-			sprintf(asmcode, "lwz r%d,%d(r%d)", inst.rt, inst.ds<<2|inst.xo, inst.ra);
+			sprintf(asmcode, "lwz r%d,%d(r%d)", inst.ds.rt, inst.ds.ds<<2|inst.ds.xo, inst.ds.ra);
 			break;
 		case 58:
-			inst = load_ds_form(code);
-			if(inst.xo == 0) {
-				sprintf(asmcode, "ld r%d,%d(r%d)", inst.rt, inst.ds, inst.ra);
-			} else if(inst.xo == 1) {
-				sprintf(asmcode, "ldu r%d,%d(r%d)", inst.rt, inst.ds, inst.ra);
+			if(inst.ds.xo == 0) {
+				sprintf(asmcode, "ld r%d,%d(r%d)", inst.ds.rt, inst.ds.ds, inst.ds.ra);
+			} else if(inst.ds.xo == 1) {
+				sprintf(asmcode, "ldu r%d,%d(r%d)", inst.ds.rt, inst.ds.ds, inst.ds.ra);
 			}
 			break;
 		case 62:
-			inst = load_ds_form(code);
-			if(inst.xo == 0) {
-				sprintf(asmcode, "std r%d,%d(r%d)", inst.rt, inst.ds, inst.ra);
-			} else if(inst.xo == 1) {
-				sprintf(asmcode, "stdu r%d,%d(r%d)", inst.rt, inst.ds, inst.ra);
+			if(inst.ds.xo == 0) {
+				sprintf(asmcode, "std r%d,%d(r%d)", inst.ds.rt, inst.ds.ds, inst.ds.ra);
+			} else if(inst.ds.xo == 1) {
+				sprintf(asmcode, "stdu r%d,%d(r%d)", inst.ds.rt, inst.ds.ds, inst.ds.ra);
 			}
 			break;
 		default:
