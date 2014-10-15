@@ -30,7 +30,17 @@ byte load_opcd(dword code) {
 void load_inst(union inst_t *inst, dword code) {
 	byte opcd = load_opcd(code);
 	switch(opcd) {
+		case 16:
+			// B-Form
+			inst->b.opcd	= ((code >> (32-6 )) & 0x0000007f);
+			inst->b.bo		= ((code >> (32-11)) & 0x0000001f);
+			inst->b.bi		= ((code >> (32-16)) & 0x0000001f);
+			inst->b.bd		= ((code >> (32-30)) & 0x00003fff);
+			inst->b.aa		= ((code >> (32-31)) & 0x00000001);
+			inst->b.lk		= ((code >> (32-32)) & 0x00000001);
+			break;
 		case 17:
+			// SC-Form
 			inst->sc.opcd	= ((code >> (32-6 )) & 0x0000007f);
 			inst->sc.lev	= ((code >> (32-27)) & 0x0000007f);
 			inst->sc.one	= ((code >> (32-31)) & 0x00000001);
@@ -85,13 +95,30 @@ char *disas(struct Storage *storage, int offset, char *asmcode) {
 	switch(opcd) {
 		case 14:
 			if(inst.d.ra == 0) {
-				sprintf(asmcode, "li\tr%d,%d", inst.d.rt, inst.d.d);
+				sprintf(asmcode, "li\t\tr%d,%d", inst.d.rt, inst.d.d);
 			} else {
 				sprintf(asmcode, "addi\tr%d,r%d,%d", inst.d.rt, inst.d.ra, inst.d.d);
 			}
 			break;
 		case 15:
 			sprintf(asmcode, "addis\tr%d,r%d,%d", inst.d.rt, inst.d.ra, inst.d.d);
+			break;
+		case 16:
+			if(inst.b.bo == 12 && inst.b.bi == 0) {
+				sprintf(asmcode, "blt\t%x", !inst.b.aa ? (((inst.b.bd << 18) >> 16) + offset) : ((inst.b.bd << 18) >> 16));
+			} else if(inst.b.bo == 4 && inst.b.bi == 10) {
+				sprintf(asmcode, "bne\t%x", !inst.b.aa ? (((inst.b.bd << 18) >> 16) + offset) : ((inst.b.bd << 18) >> 16));
+			} else if(inst.b.bo == 16 && inst.b.bi == 0) {
+				sprintf(asmcode, "bdnz\t%x", !inst.b.aa ? (((inst.b.bd << 18) >> 16) + offset) : ((inst.b.bd << 18) >> 16));
+			} else if(inst.b.aa == 0 && inst.b.lk == 0) {
+				sprintf(asmcode, "bc\t%d,%d,%x", inst.b.bo, inst.b.bi, ((inst.b.bd << 18) >> 16) + offset);
+			} else if(inst.b.aa == 0 && inst.b.lk == 1) {
+				sprintf(asmcode, "bca\t%d,%d,%x", inst.b.bo, inst.b.bi, ((inst.b.bd << 18) >> 16) + offset);
+			} else if(inst.b.aa == 1 && inst.b.lk == 0) {
+				sprintf(asmcode, "bcl\t%d,%d,%x", inst.b.bo, inst.b.bi, ((inst.b.bd << 18) >> 16));
+			} else if(inst.b.aa == 1 && inst.b.lk == 1) {
+				sprintf(asmcode, "bcla\t%d,%d,%x", inst.b.bo, inst.b.bi, ((inst.b.bd << 18) >> 16));
+			}
 			break;
 		case 17:
 			if(inst.sc.one == 1) {
@@ -188,7 +215,8 @@ int main(int argc, char *argv[]) {
 		char asmcode[32] = {0};
 		dword c = mem_read32(&code, i*4);
 		disas(&code, i*4, asmcode);
-		printf(" %02x %02x %02x %02x    %s\n",
+		printf("%4x: %02x %02x %02x %02x    %s\n",
+				i*4,
 				(c >> 24) & 0xff,
 				(c >> 16) & 0xff,
 				(c >> 8) & 0xff,
