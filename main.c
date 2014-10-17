@@ -261,7 +261,9 @@ int main(int argc, char *argv[]) {
 		fread(code.mem, sizeof(byte), code.size, fp);
 	}
 
+	int nip;
 	if(argc == 2) {
+		// exec-mode
 		stack.size = STACK_SIZE;
 		stack.mem = (void *)malloc(stack.size);
 		stack.offset_addr = 0;
@@ -274,14 +276,17 @@ int main(int argc, char *argv[]) {
 			printf("stack size = %ld\n", stack.size);
 			cpu.gpr[1] = STACK_SIZE / 2;
 		}
-	}
 
-	int nip;
-	for(nip = 0; nip < code.size; nip += 4) {
-		dword c = mem_read32(&code, nip);
-		if(argc == 2) {
+		for(nip = 0; nip < code.size; nip += 4) {
+			dword c = mem_read32(&code, nip);
 			exec(&code, nip);
-		} else if(argc == 3) {
+		}
+		
+		free(stack.mem); stack.mem = NULL;
+	} else {
+		// disassemble-mode
+		for(nip = 0; nip < code.size; nip += 4) {
+			dword c = mem_read32(&code, nip);
 			char asmcode[32] = {0};
 			disas(&code, nip, asmcode);
 			printf("%4x: %02x %02x %02x %02x    %s\n",
@@ -294,7 +299,6 @@ int main(int argc, char *argv[]) {
 	}
 
 	free(code.mem); code.mem = NULL;
-	if(argc == 2) { free(stack.mem); stack.mem = NULL; }
 	fclose(fp);
 
 	return EXIT_SUCCESS;
