@@ -251,6 +251,7 @@ int main(int argc, char *argv[]) {
 
 	code.size = fsize(fp);
 	code.mem = (void *)malloc(code.size);
+	code.offset_addr = 0;
 	if(code.mem == NULL) {
 		fprintf(stderr, "error: out of memory\n");
 		fclose(fp);
@@ -263,6 +264,7 @@ int main(int argc, char *argv[]) {
 	if(argc == 2) {
 		stack.size = STACK_SIZE;
 		stack.mem = (void *)malloc(stack.size);
+		stack.offset_addr = 0;
 		if(stack.mem == NULL) {
 			fprintf(stderr, "error: out of memory\n");
 			fclose(fp);

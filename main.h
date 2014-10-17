@@ -24,8 +24,14 @@ struct Processor {
 };
 
 struct Storage {
+	// the instance of memory storage
 	void *mem;
+	// size of storage
 	long size;
+	// offset address of memory
+	// ex) offset_addr = 0x80000000
+	// mem[0x1a] stands for the address of 0x8000001a in virtual memory space
+	long offset_addr;
 };
 
 extern struct Processor cpu;
