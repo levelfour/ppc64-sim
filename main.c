@@ -25,10 +25,23 @@ long fsize(FILE *fp) {
 dword mem_read32(struct Storage *storage, int offset) {
 	byte *p = storage->mem;
 	return (
-		(p[offset+0] << 24) |
-		(p[offset+1] << 16) |
-		(p[offset+2] << 8) |
+		(p[offset+0] << 0x18) |
+		(p[offset+1] << 0x10) |
+		(p[offset+2] << 0x08) |
 		(p[offset+3]));
+}
+
+qword mem_read64(struct Storage *storage, int offset) {
+	byte *p = storage->mem;
+	return (
+		((qword)p[offset+0] << 0x38) |
+		((qword)p[offset+1] << 0x30) |
+		((qword)p[offset+2] << 0x28) |
+		((qword)p[offset+3] << 0x20) |
+		((qword)p[offset+4] << 0x18) |
+		((qword)p[offset+5] << 0x10) |
+		((qword)p[offset+6] << 0x08) |
+		((qword)p[offset+7]));
 }
 
 void mem_write64(struct Storage *storage, int offset, qword v) {
@@ -244,7 +257,19 @@ int exec(struct Storage *storage, int offset) {
 					break;
 			}
 			break;
-
+		case 58:
+			if(inst.ds.xo == 0) {
+				if(inst.ds.ra == 0) {
+					cpu.gpr[inst.ds.rt] = mem_read64(&stack, inst.ds.ds << 2);
+				} else {
+					cpu.gpr[inst.ds.rt] = mem_read64(&stack, cpu.gpr[inst.ds.ra] + (inst.ds.ds << 2));
+				}
+			} else if(inst.ds.xo == 1) {
+				if(inst.ds.ra == 0 || inst.ds.ra == inst.ds.rt) { return -1; }
+				cpu.gpr[inst.ds.rt] = mem_read64(&stack, cpu.gpr[inst.ds.ra] + (inst.ds.ds << 2));
+				cpu.gpr[inst.ds.ra] = cpu.gpr[inst.ds.ra] + (inst.ds.ds << 2);
+			}
+			break;
 		case 62:
 			mem_write64(&stack, cpu.gpr[inst.ds.ra] + (inst.ds.ds << 2), cpu.gpr[inst.ds.rt]);
 			if(inst.ds.xo == 1) {
