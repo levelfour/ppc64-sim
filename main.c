@@ -217,6 +217,13 @@ int exec(struct Storage *storage, int offset) {
 	load_inst(&inst, code);
 	
 	switch(opcd) {
+		case 14:
+			if(inst.d.ra == 0) {
+				cpu.gpr[inst.d.rt] = inst.d.d;
+			} else {
+				cpu.gpr[inst.d.rt] = cpu.gpr[inst.d.ra] + inst.d.d;
+			}
+			break;
 		case 31:
 			switch(inst.x.xo) {
 				case 444:
