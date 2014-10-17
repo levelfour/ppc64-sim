@@ -169,13 +169,7 @@ char *disas(struct Storage *storage, int offset, char *asmcode) {
 			}
 			break;
 		case 19:
-			if(inst.xl.bt == 12) {
-				sprintf(asmcode, "bltlr");
-			} else if(inst.xl.bt == 4 && inst.xl.ba == 10) {
-				sprintf(asmcode, "bnelr\tcr2");
-			} else if(inst.xl.bt == 16) {
-				sprintf(asmcode, "bdnzlr");
-			} else if(inst.xl.lk == 0) {
+			if(inst.xl.lk == 0) {
 				sprintf(asmcode, "bclr");
 			} else if(inst.xl.lk == 1) {
 				sprintf(asmcode, "bclrl");
@@ -351,6 +345,7 @@ int main(int argc, char *argv[]) {
 		for(cpu.nip = 0; cpu.nip < code.size; cpu.nip += 4) {
 			word c = mem_read32(&code, cpu.nip);
 			exec(&code, cpu.nip);
+			printf("0x%lx\n", cpu.nip);
 		}
 
 		// REPL-mode

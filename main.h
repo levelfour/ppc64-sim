@@ -23,6 +23,8 @@ struct Processor {
 	dword ctr;
 	// integer exception register
 	dword xer;
+	// next instruction pointer
+	dword nip;
 };
 
 struct Storage {
