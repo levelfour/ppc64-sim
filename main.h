@@ -6,6 +6,8 @@ typedef unsigned int dword;
 typedef unsigned short word;
 typedef unsigned char byte;
 
+#define PROMPT "> "
+
 #define STACK_SIZE 0xffff
 
 struct Processor {

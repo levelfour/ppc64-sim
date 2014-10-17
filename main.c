@@ -225,6 +225,9 @@ int exec(struct Storage *storage, int offset) {
 	switch(opcd) {
 		case 62:
 			mem_write64(&stack, cpu.gpr[inst.ds.ra] + (inst.ds.ds << 2), cpu.gpr[inst.ds.rt]);
+			if(inst.ds.xo == 1) {
+				cpu.gpr[inst.ds.ra] = cpu.gpr[inst.ds.ra] + (inst.ds.ds << 2);
+			}
 			break;
 		default:
 			return -1;
@@ -277,11 +280,30 @@ int main(int argc, char *argv[]) {
 			cpu.gpr[1] = STACK_SIZE / 2;
 		}
 
+		// execution loop
 		for(nip = 0; nip < code.size; nip += 4) {
 			dword c = mem_read32(&code, nip);
 			exec(&code, nip);
 		}
-		
+
+		// REPL-mode
+		char command[32];
+		printf(PROMPT);
+		while(fgets(command, 31, stdin) != 0) {
+			if(command[0] == '%') {
+				if(command[1] == 'r') {
+					int reg_n = atoi(command + 2);
+					printf("r%d=0x%016lx\n", reg_n, cpu.gpr[reg_n]);
+				}
+			} else if(strncmp(command, "exit", 4) == 0 || strncmp(command, "quit", 4) == 0) {
+				goto REPL_END;
+			} else {
+				fprintf(stderr, "error: unknown command\n");
+			}
+			printf(PROMPT);
+		}
+
+REPL_END:
 		free(stack.mem); stack.mem = NULL;
 	} else {
 		// disassemble-mode
