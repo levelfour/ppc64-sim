@@ -1,9 +1,9 @@
 #ifndef __MAIN_H__
 #define __MAIN_H__
 
-typedef unsigned long qword;
-typedef unsigned int dword;
-typedef unsigned short word;
+typedef unsigned long dword;
+typedef unsigned int word;
+typedef unsigned short hword;
 typedef unsigned char byte;
 
 #define PROMPT "> "
@@ -12,17 +12,17 @@ typedef unsigned char byte;
 
 struct Processor {
 	// general registers
-	qword gpr[32];
+	dword gpr[32];
 	// floating point registers
 	double fpr[32];
 	// condition register
-	qword cr;
+	dword cr;
 	// link register
-	qword lr;
+	dword lr;
 	// counter register
-	qword ctr;
+	dword ctr;
 	// integer exception register
-	qword xer;
+	dword xer;
 };
 
 struct Storage {

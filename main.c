@@ -22,7 +22,7 @@ long fsize(FILE *fp) {
 	return size;
 }
 
-dword mem_read32(struct Storage *storage, int offset) {
+word mem_read32(struct Storage *storage, int offset) {
 	byte *p = storage->mem;
 	return (
 		(p[offset+0] << 0x18) |
@@ -31,20 +31,20 @@ dword mem_read32(struct Storage *storage, int offset) {
 		(p[offset+3]));
 }
 
-qword mem_read64(struct Storage *storage, int offset) {
+dword mem_read64(struct Storage *storage, int offset) {
 	byte *p = storage->mem;
 	return (
-		((qword)p[offset+0] << 0x38) |
-		((qword)p[offset+1] << 0x30) |
-		((qword)p[offset+2] << 0x28) |
-		((qword)p[offset+3] << 0x20) |
-		((qword)p[offset+4] << 0x18) |
-		((qword)p[offset+5] << 0x10) |
-		((qword)p[offset+6] << 0x08) |
-		((qword)p[offset+7]));
+		((dword)p[offset+0] << 0x38) |
+		((dword)p[offset+1] << 0x30) |
+		((dword)p[offset+2] << 0x28) |
+		((dword)p[offset+3] << 0x20) |
+		((dword)p[offset+4] << 0x18) |
+		((dword)p[offset+5] << 0x10) |
+		((dword)p[offset+6] << 0x08) |
+		((dword)p[offset+7]));
 }
 
-void mem_write64(struct Storage *storage, int offset, qword v) {
+void mem_write64(struct Storage *storage, int offset, dword v) {
 	byte *p = storage->mem;
 	p[offset+0] = ((v >> 56) & 0xff);
 	p[offset+1] = ((v >> 48) & 0xff);
@@ -56,11 +56,11 @@ void mem_write64(struct Storage *storage, int offset, qword v) {
 	p[offset+7] = ((v >> 0 ) & 0xff);
 }
 
-byte load_opcd(dword code) {
+byte load_opcd(word code) {
 	return ((code >> (31-6+1)) & 0x00000fff);
 }
 
-void load_inst(union inst_t *inst, dword code) {
+void load_inst(union inst_t *inst, word code) {
 	byte opcd = load_opcd(code);
 	switch(opcd) {
 		case 16:
@@ -120,7 +120,7 @@ void load_inst(union inst_t *inst, dword code) {
 }
 
 char *disas(struct Storage *storage, int offset, char *asmcode) {
-	dword code = mem_read32(storage, offset);
+	word code = mem_read32(storage, offset);
 	byte opcd = load_opcd(code);
 	union inst_t inst;
 	load_inst(&inst, code);
@@ -224,7 +224,7 @@ char *disas(struct Storage *storage, int offset, char *asmcode) {
 }
 
 int exec(struct Storage *storage, int offset) {
-	dword code = mem_read32(storage, offset);
+	word code = mem_read32(storage, offset);
 	byte opcd = load_opcd(code);
 	union inst_t inst;
 	load_inst(&inst, code);
@@ -329,7 +329,7 @@ int main(int argc, char *argv[]) {
 
 		// execution loop
 		for(nip = 0; nip < code.size; nip += 4) {
-			dword c = mem_read32(&code, nip);
+			word c = mem_read32(&code, nip);
 			exec(&code, nip);
 		}
 
@@ -355,7 +355,7 @@ REPL_END:
 	} else {
 		// disassemble-mode
 		for(nip = 0; nip < code.size; nip += 4) {
-			dword c = mem_read32(&code, nip);
+			word c = mem_read32(&code, nip);
 			char asmcode[32] = {0};
 			disas(&code, nip, asmcode);
 			printf("%4x: %02x %02x %02x %02x    %s\n",
