@@ -363,14 +363,13 @@ int main(int argc, char *argv[]) {
 					printf("r%d=0x%016lx\n", reg_n, cpu.gpr[reg_n]);
 				}
 			} else if(strncmp(command, "exit", 4) == 0 || strncmp(command, "quit", 4) == 0) {
-				goto REPL_END;
+				break;
 			} else {
 				fprintf(stderr, "error: unknown command\n");
 			}
 			printf(PROMPT);
 		}
 
-REPL_END:
 		free(stack.mem); stack.mem = NULL;
 	} else {
 		// disassemble-mode
