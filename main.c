@@ -182,12 +182,6 @@ char *disas(struct Storage *storage, int offset, char *asmcode) {
 						case 9:
 							sprintf(asmcode, "mtctr\tr%d", inst.x.rt);
 							break;
-						case 896:
-							sprintf(asmcode, "mtppr\tr%d", inst.x.rt);
-							break;
-						case 898:
-							sprintf(asmcode, "mtppr32\tr%d", inst.x.rt);
-							break;
 					}
 					break;
 			}
@@ -223,6 +217,27 @@ int exec(struct Storage *storage, int offset) {
 	load_inst(&inst, code);
 	
 	switch(opcd) {
+		case 31:
+			switch(inst.x.xo) {
+				case 444:
+					cpu.gpr[inst.x.ra] = cpu.gpr[inst.x.rt] | cpu.gpr[inst.x.rb];
+					break;
+				case 467:
+					switch(inst.x.rb << 5 | inst.x.ra) {
+						case 1:
+							cpu.xer = cpu.gpr[inst.x.rt];
+							break;
+						case 8:
+							cpu.lr = cpu.gpr[inst.x.rt];
+							break;
+						case 9:
+							cpu.ctr = cpu.gpr[inst.x.rt];
+							break;
+					}
+					break;
+			}
+			break;
+
 		case 62:
 			mem_write64(&stack, cpu.gpr[inst.ds.ra] + (inst.ds.ds << 2), cpu.gpr[inst.ds.rt]);
 			if(inst.ds.xo == 1) {
