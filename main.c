@@ -257,6 +257,9 @@ int exec(struct Storage *storage, int offset) {
 					break;
 			}
 			break;
+		case 32:
+			cpu.gpr[inst.d.rt] = mem_read32(&stack, ((inst.d.ra == 0) ? 0 : inst.d.ra) + inst.d.d);
+			break;
 		case 58:
 			if(inst.ds.xo == 0) {
 				if(inst.ds.ra == 0) {
