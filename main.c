@@ -22,6 +22,12 @@ long fsize(FILE *fp) {
 	return size;
 }
 
+int elf_isvalid(FILE *fp) {
+	byte elf_ident[EI_NIDENT];
+	fread(elf_ident, sizeof(byte), EI_NIDENT, fp);
+	return memcmp(elf_ident, "\x7f""ELF", 4) == 0;
+}
+
 word mem_read32(struct Storage *storage, int offset) {
 	byte *p = storage->mem;
 	return (
@@ -381,6 +387,14 @@ int main(int argc, char *argv[]) {
 		fprintf(stderr, "error: no such file '%s'\n", filename);
 		return EXIT_FAILURE;
 	}
+
+	/*
+	if(!elf_isvalid(fp)) {
+		fprintf(stderr, "error: invalid file format\n");
+		fclose(fp);
+		return EXIT_FAILURE;
+	}
+	*/
 
 	code.size = fsize(fp);
 	code.mem = (void *)malloc(code.size);

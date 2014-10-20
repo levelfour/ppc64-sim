@@ -8,12 +8,30 @@ typedef unsigned char byte;
 
 #define PROMPT "> "
 
+#define EI_NIDENT	16
+
 #define STACK_SIZE 0xffff
 
 #define EXEC_UNDEFINED	-1
 #define EXEC_SUCCESS	0
 #define EXEC_EXIT		(1 << 8)
 
+struct Elf64_header {
+	byte	e_idnet[EI_NIDENT];	/* ELF identification */
+	hword	e_type;				/* Object file type */
+	hword	e_machine;			/* Machine type */
+	word	e_version;			/* Object file version */
+	dword	e_entry;			/* Entry point address */
+	dword	e_phoff;			/* Program header offset */
+	dword	e_shoff;			/* Section header offset */
+	word	e_flags;			/* Processor-specific flags */
+	hword	e_ehsize;			/* ELF header size */
+	hword	e_phentsize;		/* Size of program header entry */
+	hword	e_phnum;			/* Number of program header entries */
+	hword	e_shentsize;		/* Size of section header entry */
+	hword	e_shnum;			/* Number of section header entries */
+	hword	e_shstrndx;			/* Section name string table index */
+};
 
 struct Processor {
 	// general registers
