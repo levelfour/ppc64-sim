@@ -244,6 +244,13 @@ int exec(struct Storage *storage, int offset) {
 				cpu.gpr[inst.d.rt] = cpu.gpr[inst.d.ra] + inst.d.d;
 			}
 			break;
+		case 15:
+			if(inst.d.ra == 0) {
+				cpu.gpr[inst.d.rt] = inst.d.d << 16;
+			} else {
+				cpu.gpr[inst.d.rt] = inst.d.ra + (inst.d.d << 16);
+			}
+			break;
 		case 19:
 			{
 				int nia = cpu.nip + 4;
@@ -350,7 +357,11 @@ int main(int argc, char *argv[]) {
 		// execution loop
 		for(cpu.nip = 0; cpu.nip < code.size; cpu.nip += 4) {
 			word c = mem_read32(&code, cpu.nip);
-			exec(&code, cpu.nip);
+			if(exec(&code, cpu.nip) == -1) {
+				char asmcode[32] = {0};
+				disas(&code, cpu.nip, asmcode);
+				fprintf(stderr, "warning: undefined instruction `%s`\n", asmcode);
+			}
 		}
 
 		// REPL-mode
