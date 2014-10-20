@@ -243,6 +243,7 @@ int exec(struct Storage *storage, int offset) {
 	
 	switch(opcd) {
 		case 14:
+			// Add-Immediate
 			if(inst.d.ra == 0) {
 				cpu.gpr[inst.d.rt] = inst.d.d;
 			} else {
@@ -250,6 +251,7 @@ int exec(struct Storage *storage, int offset) {
 			}
 			break;
 		case 15:
+			// Add-Immediate-Shifted
 			if(inst.d.ra == 0) {
 				cpu.gpr[inst.d.rt] = inst.d.d << 16;
 			} else {
@@ -258,6 +260,7 @@ int exec(struct Storage *storage, int offset) {
 			break;
 		case 16:
 			{
+				// Branch
 				dword mask = (mode == 64) ? 0xffffffffffffffff : 0x00000000ffffffff;
 				if(!((inst.b.bo >> 2) & 0x01)) { cpu.ctr--; }
 				int ctr_ok = ((inst.b.bo >> 2) & 0x01) | (((cpu.ctr & mask) != 0) ^ ((inst.b.bo >> 1) & 0x01));
@@ -275,6 +278,7 @@ int exec(struct Storage *storage, int offset) {
 			}
 		case 19:
 			{
+				// Branch-Conditional
 				int nia = cpu.nip + 4;
 				if((inst.xl.bt & 0x04) != 0x04) { cpu.ctr--; }
 				dword mask = (mode == 64) ? 0xffffffffffffffff : 0x00000000ffffffff;
@@ -287,9 +291,11 @@ int exec(struct Storage *storage, int offset) {
 		case 31:
 			switch(inst.x.xo) {
 				case 444:
+					// OR
 					cpu.gpr[inst.x.ra] = cpu.gpr[inst.x.rt] | cpu.gpr[inst.x.rb];
 					break;
 				case 467:
+					// Move-To-Special-Purpose-Register
 					switch(inst.x.rb << 5 | inst.x.ra) {
 						case 1:
 							cpu.xer = cpu.gpr[inst.x.rt];
@@ -305,9 +311,11 @@ int exec(struct Storage *storage, int offset) {
 			}
 			break;
 		case 32:
+			// Load-Word
 			cpu.gpr[inst.d.rt] = mem_read32(&stack, ((inst.d.ra == 0) ? 0 : inst.d.ra) + inst.d.d);
 			break;
 		case 58:
+			// Load-Doubleword
 			if(inst.ds.xo == 0) {
 				if(inst.ds.ra == 0) {
 					cpu.gpr[inst.ds.rt] = mem_read64(&stack, inst.ds.ds << 2);
@@ -321,6 +329,7 @@ int exec(struct Storage *storage, int offset) {
 			}
 			break;
 		case 62:
+			// STore-Doubleword
 			mem_write64(&stack, cpu.gpr[inst.ds.ra] + (inst.ds.ds << 2), cpu.gpr[inst.ds.rt]);
 			if(inst.ds.xo == 1) {
 				cpu.gpr[inst.ds.ra] = cpu.gpr[inst.ds.ra] + (inst.ds.ds << 2);
