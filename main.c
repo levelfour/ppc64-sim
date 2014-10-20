@@ -9,6 +9,10 @@ struct Processor cpu;
 struct Storage code;
 struct Storage stack;
 
+hword mem_read16(byte *p, int offset);
+word mem_read32(byte *p, int offset);
+dword mem_read64(byte *p, int offset);
+
 int fexists(const char *filename) {
 	struct stat st;
 	return stat(filename, &st);
@@ -22,14 +26,47 @@ long fsize(FILE *fp) {
 	return size;
 }
 
-int elf_isvalid(FILE *fp) {
-	byte elf_ident[EI_NIDENT];
-	fread(elf_ident, sizeof(byte), EI_NIDENT, fp);
-	return memcmp(elf_ident, "\x7f""ELF", 4) == 0;
+int elf_loadfile(Exefile *file, const char *filename) {
+	if((file->fp = fopen(filename, "rb")) == NULL) {
+		fprintf(stderr, "error: no such file '%s'\n", filename);
+		return 0;
+	}
+
+	byte header[sizeof(struct Elf64_header)];
+	fread(header, 1, sizeof(struct Elf64_header), file->fp);
+/*
+	if(memcmp(header, "\x7f""ELF", 4) != 0) {
+		fprintf(stderr, "error: invalid file type\n");
+		fclose(file->fp);
+		return 0;
+	}
+	*/
+
+	memcpy(file->header.e_idnet, header, 16);
+	file->header.e_type		= mem_read16(header, 16);
+	file->header.e_machine	= mem_read16(header, 18);
+	file->header.e_version	= mem_read32(header, 20);
+	file->header.e_entry	= mem_read64(header, 24);
+	file->header.e_phoff	= mem_read64(header, 32);
+	file->header.e_shoff	= mem_read64(header, 40);
+	file->header.e_flags	= mem_read32(header, 48);
+	file->header.e_ehsize	= mem_read16(header, 52);
+	file->header.e_phentsize = mem_read16(header, 54);
+	file->header.e_phnum	= mem_read16(header, 56);
+	file->header.e_shentsize = mem_read16(header, 58);
+	file->header.e_shnum	= mem_read16(header, 60);
+	file->header.e_shstrndx	= mem_read16(header, 62);
+
+	return 1;
 }
 
-word mem_read32(struct Storage *storage, int offset) {
-	byte *p = storage->mem;
+hword mem_read16(byte *p, int offset) {
+	return (
+		(p[offset+0] << 0x08) |
+		(p[offset+1]));
+}
+
+word mem_read32(byte *p, int offset) {
 	return (
 		(p[offset+0] << 0x18) |
 		(p[offset+1] << 0x10) |
@@ -37,8 +74,7 @@ word mem_read32(struct Storage *storage, int offset) {
 		(p[offset+3]));
 }
 
-dword mem_read64(struct Storage *storage, int offset) {
-	byte *p = storage->mem;
+dword mem_read64(byte *p, int offset) {
 	return (
 		((dword)p[offset+0] << 0x38) |
 		((dword)p[offset+1] << 0x30) |
@@ -50,8 +86,7 @@ dword mem_read64(struct Storage *storage, int offset) {
 		((dword)p[offset+7]));
 }
 
-void mem_write64(struct Storage *storage, int offset, dword v) {
-	byte *p = storage->mem;
+void mem_write64(byte *p, int offset, dword v) {
 	p[offset+0] = ((v >> 56) & 0xff);
 	p[offset+1] = ((v >> 48) & 0xff);
 	p[offset+2] = ((v >> 40) & 0xff);
@@ -131,7 +166,7 @@ void load_inst(union inst_t *inst, word code) {
 }
 
 char *disas(struct Storage *storage, int offset, char *asmcode) {
-	word code = mem_read32(storage, offset);
+	word code = mem_read32(storage->mem, offset);
 	byte opcd = load_opcd(code);
 	union inst_t inst;
 	load_inst(&inst, code);
@@ -263,7 +298,7 @@ void syscall(struct Processor *cpu, struct Storage *page) {
 
 int exec(struct Storage *storage, int offset) {
 	const int mode = 64;
-	word code = mem_read32(storage, offset);
+	word code = mem_read32(storage->mem, offset);
 	byte opcd = load_opcd(code);
 	union inst_t inst;
 	load_inst(&inst, code);
@@ -294,13 +329,13 @@ int exec(struct Storage *storage, int offset) {
 				int cond_ok = ((inst.b.bo >> 4) & 0x01) | (((cpu.cr >> (63-32-inst.b.bi)) & 0x01) == ((inst.b.bo >> 3) & 0x01));
 				if(ctr_ok && cond_ok) {
 					if(inst.b.aa) {
-						set_nia(&cpu, mem_read64(&stack, inst.b.bd << 2));
+						set_nia(&cpu, mem_read64(stack.mem, inst.b.bd << 2));
 					} else {
 						int cia = cpu.nip; // Current-Instruction-Address
-						set_nia(&cpu, mem_read64(&stack, cia + (inst.b.bd << 2)));
+						set_nia(&cpu, mem_read64(stack.mem, cia + (inst.b.bd << 2)));
 					}
 				}
-				if(inst.b.lk) { cpu.lr = mem_read64(&stack, cpu.nip + 4); }
+				if(inst.b.lk) { cpu.lr = mem_read64(stack.mem, cpu.nip + 4); }
 				break;
 			}
 		case 17:
@@ -342,25 +377,25 @@ int exec(struct Storage *storage, int offset) {
 			break;
 		case 32:
 			// Load-Word
-			cpu.gpr[inst.d.rt] = mem_read32(&stack, ((inst.d.ra == 0) ? 0 : inst.d.ra) + inst.d.d);
+			cpu.gpr[inst.d.rt] = mem_read32(stack.mem, ((inst.d.ra == 0) ? 0 : inst.d.ra) + inst.d.d);
 			break;
 		case 58:
 			// Load-Doubleword
 			if(inst.ds.xo == 0) {
 				if(inst.ds.ra == 0) {
-					cpu.gpr[inst.ds.rt] = mem_read64(&stack, inst.ds.ds << 2);
+					cpu.gpr[inst.ds.rt] = mem_read64(stack.mem, inst.ds.ds << 2);
 				} else {
-					cpu.gpr[inst.ds.rt] = mem_read64(&stack, cpu.gpr[inst.ds.ra] + (inst.ds.ds << 2));
+					cpu.gpr[inst.ds.rt] = mem_read64(stack.mem, cpu.gpr[inst.ds.ra] + (inst.ds.ds << 2));
 				}
 			} else if(inst.ds.xo == 1) {
 				if(inst.ds.ra == 0 || inst.ds.ra == inst.ds.rt) { return -1; }
-				cpu.gpr[inst.ds.rt] = mem_read64(&stack, cpu.gpr[inst.ds.ra] + (inst.ds.ds << 2));
+				cpu.gpr[inst.ds.rt] = mem_read64(stack.mem, cpu.gpr[inst.ds.ra] + (inst.ds.ds << 2));
 				cpu.gpr[inst.ds.ra] = cpu.gpr[inst.ds.ra] + (inst.ds.ds << 2);
 			}
 			break;
 		case 62:
 			// STore-Doubleword
-			mem_write64(&stack, cpu.gpr[inst.ds.ra] + (inst.ds.ds << 2), cpu.gpr[inst.ds.rt]);
+			mem_write64(stack.mem, cpu.gpr[inst.ds.ra] + (inst.ds.ds << 2), cpu.gpr[inst.ds.rt]);
 			if(inst.ds.xo == 1) {
 				cpu.gpr[inst.ds.ra] = cpu.gpr[inst.ds.ra] + (inst.ds.ds << 2);
 			}
@@ -382,30 +417,21 @@ int main(int argc, char *argv[]) {
 		strncpy(filename, argv[argc-1], 127);
 	}
 
-	FILE *fp = NULL;
-	if((fp = fopen(filename, "rb")) == NULL) {
-		fprintf(stderr, "error: no such file '%s'\n", filename);
+	Exefile exe;
+	if(!elf_loadfile(&exe, filename)) {
 		return EXIT_FAILURE;
 	}
 
-	/*
-	if(!elf_isvalid(fp)) {
-		fprintf(stderr, "error: invalid file format\n");
-		fclose(fp);
-		return EXIT_FAILURE;
-	}
-	*/
-
-	code.size = fsize(fp);
+	code.size = fsize(exe.fp);
 	code.mem = (void *)malloc(code.size);
 	code.offset_addr = 0;
 	if(code.mem == NULL) {
 		fprintf(stderr, "error: out of memory\n");
-		fclose(fp);
+		fclose(exe.fp);
 		return EXIT_FAILURE;
 	} else {
 		printf("code size = %ld\n", code.size);
-		fread(code.mem, sizeof(byte), code.size, fp);
+		fread(code.mem, sizeof(byte), code.size, exe.fp);
 	}
 
 	if(argc == 2) {
@@ -415,7 +441,7 @@ int main(int argc, char *argv[]) {
 		stack.offset_addr = 0;
 		if(stack.mem == NULL) {
 			fprintf(stderr, "error: out of memory\n");
-			fclose(fp);
+			fclose(exe.fp);
 			free(code.mem);
 			return EXIT_FAILURE;
 		} else {
@@ -425,7 +451,7 @@ int main(int argc, char *argv[]) {
 
 		// execution loop
 		for(cpu.nip = 0; cpu.nip < code.size; cpu.nip += 4) {
-			word c = mem_read32(&code, cpu.nip);
+			word c = mem_read32(code.mem, cpu.nip);
 			switch(exec(&code, cpu.nip)) {
 				case EXEC_EXIT:
 					goto EXEC_LOOP_END;
@@ -464,7 +490,7 @@ EXEC_LOOP_END:;
 	} else {
 		// disassemble-mode
 		for(cpu.nip = 0; cpu.nip < code.size; cpu.nip += 4) {
-			word c = mem_read32(&code, cpu.nip);
+			word c = mem_read32(code.mem, cpu.nip);
 			char asmcode[32] = {0};
 			disas(&code, cpu.nip, asmcode);
 			printf("%4lx: %02x %02x %02x %02x    %s\n",
@@ -477,7 +503,7 @@ EXEC_LOOP_END:;
 	}
 
 	free(code.mem); code.mem = NULL;
-	fclose(fp);
+	fclose(exe.fp);
 
 	return EXIT_SUCCESS;
 }

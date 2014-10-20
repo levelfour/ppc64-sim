@@ -1,6 +1,8 @@
 #ifndef __MAIN_H__
 #define __MAIN_H__
 
+#include <stdio.h>
+
 typedef unsigned long dword;
 typedef unsigned int word;
 typedef unsigned short hword;
@@ -32,6 +34,11 @@ struct Elf64_header {
 	hword	e_shnum;			/* Number of section header entries */
 	hword	e_shstrndx;			/* Section name string table index */
 };
+
+typedef struct {
+	struct Elf64_header header;
+	FILE *fp;
+} Exefile;
 
 struct Processor {
 	// general registers
