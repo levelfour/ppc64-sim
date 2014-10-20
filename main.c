@@ -234,6 +234,27 @@ char *disas(struct Storage *storage, int offset, char *asmcode) {
 	return asmcode;
 }
 
+void syscall(struct Processor *cpu, struct Storage *page) {
+	byte *p = page->mem;
+	switch(cpu->gpr[0]) {
+		case 1: // exit
+			printf("info: program exit with status code %ld\n", cpu->gpr[3]);
+			break;
+		case 4: // write
+			switch(cpu->gpr[3]) {
+				case 1:
+				case 2:
+					printf("%.*s", (int)(cpu->gpr[5]), p + cpu->gpr[4]);
+					break;
+				default:
+					fprintf(stderr, "warning: general file-descriptor is not already supported.\n");
+			}
+			break;
+		default:
+			fprintf(stderr, "warning: unimplemented syscall no.%lu\n", cpu->gpr[0]);
+	}
+}
+
 int exec(struct Storage *storage, int offset) {
 	const int mode = 64;
 	word code = mem_read32(storage, offset);
@@ -276,6 +297,9 @@ int exec(struct Storage *storage, int offset) {
 				if(inst.b.lk) { cpu.lr = mem_read64(&stack, cpu.nip + 4); }
 				break;
 			}
+		case 17:
+			syscall(&cpu, &stack);
+			break;
 		case 19:
 			{
 				// Branch-Conditional
@@ -388,12 +412,22 @@ int main(int argc, char *argv[]) {
 		// execution loop
 		for(cpu.nip = 0; cpu.nip < code.size; cpu.nip += 4) {
 			word c = mem_read32(&code, cpu.nip);
-			if(exec(&code, cpu.nip) == -1) {
-				char asmcode[32] = {0};
-				disas(&code, cpu.nip, asmcode);
-				fprintf(stderr, "warning: undefined instruction `%s`\n", asmcode);
+			switch(exec(&code, cpu.nip)) {
+				case EXEC_EXIT:
+					goto EXEC_LOOP_END;
+				case EXEC_UNDEFINED:
+					{
+						char asmcode[32] = {0};
+						disas(&code, cpu.nip, asmcode);
+						fprintf(stderr, "warning: undefined instruction `%s`\n", asmcode);
+						break;
+					}
+				default:
+					break;
 			}
 		}
+
+EXEC_LOOP_END:;
 
 		// REPL-mode
 		char command[32];

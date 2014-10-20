@@ -10,6 +10,11 @@ typedef unsigned char byte;
 
 #define STACK_SIZE 0xffff
 
+#define EXEC_UNDEFINED	-1
+#define EXEC_SUCCESS	0
+#define EXEC_EXIT		(1 << 8)
+
+
 struct Processor {
 	// general registers
 	dword gpr[32];
