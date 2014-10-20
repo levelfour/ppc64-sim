@@ -35,8 +35,22 @@ struct Elf64_header {
 	hword	e_shstrndx;			/* Section name string table index */
 };
 
+struct Elf64_sh {
+	word	sh_name;        /* section name */
+	word	sh_type;        /* section type */
+	dword	sh_flags;       /* section flags */
+	dword	sh_addr;        /* virtual address */
+	dword	sh_offset;      /* file offset */
+	dword	sh_size;        /* section size */
+	word	sh_link;        /* link to another */
+	word	sh_info;        /* misc info */
+	dword	sh_addralign;   /* memory alignment */
+	dword	sh_entsize;     /* table entry size */
+};  
+
 typedef struct {
 	struct Elf64_header header;
+	struct Elf64_sh *sec_h;
 	FILE *fp;
 } Exefile;
 

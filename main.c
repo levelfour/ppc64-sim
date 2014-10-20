@@ -57,6 +57,37 @@ int elf_loadfile(Exefile *file, const char *filename) {
 	file->header.e_shnum	= mem_read16(header, 60);
 	file->header.e_shstrndx	= mem_read16(header, 62);
 
+	byte *sh_p = (byte *)malloc(sizeof(struct Elf64_sh) * file->header.e_shnum);
+	file->sec_h = (struct Elf64_sh*)malloc(sizeof(struct Elf64_sh) * file->header.e_shnum);
+	if(file->sec_h == NULL || sh_p == NULL) {
+		fprintf(stderr, "error: out of memory\n");
+		free(sh_p);
+		free(file->sec_h);
+		fclose(file->fp);
+		return 0;
+	}
+	
+	// read section headers
+	int i;
+	fseek(file->fp, file->header.e_shoff, SEEK_SET);
+	fread(sh_p, sizeof(struct Elf64_sh) * file->header.e_shnum, sizeof(byte), file->fp);
+	for(i = 0; i < file->header.e_shnum; i++) {
+		byte *p = sh_p + sizeof(struct Elf64_sh) * i;
+		file->sec_h[i].sh_name		= mem_read32(p, 0);
+		file->sec_h[i].sh_type		= mem_read32(p, 4);
+		file->sec_h[i].sh_flags		= mem_read64(p, 8);
+		file->sec_h[i].sh_addr		= mem_read64(p, 16);
+		file->sec_h[i].sh_offset	= mem_read64(p, 24);
+		file->sec_h[i].sh_size		= mem_read64(p, 32);
+		file->sec_h[i].sh_link		= mem_read32(p, 40);
+		file->sec_h[i].sh_info		= mem_read32(p, 44);
+		file->sec_h[i].sh_addralign	= mem_read64(p, 48);
+		file->sec_h[i].sh_entsize	= mem_read64(p, 56);
+	}
+
+	free(sh_p);
+	free(file->sec_h);
+
 	return 1;
 }
 
@@ -459,7 +490,7 @@ int main(int argc, char *argv[]) {
 					{
 						char asmcode[32] = {0};
 						disas(&code, cpu.nip, asmcode);
-						fprintf(stderr, "warning: undefined instruction `%s`\n", asmcode);
+//						fprintf(stderr, "warning: undefined instruction `%s`\n", asmcode);
 						break;
 					}
 				default:
@@ -503,6 +534,7 @@ EXEC_LOOP_END:;
 	}
 
 	free(code.mem); code.mem = NULL;
+	free(exe.sec_h);
 	fclose(exe.fp);
 
 	return EXIT_SUCCESS;
