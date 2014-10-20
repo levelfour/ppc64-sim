@@ -56,6 +56,11 @@ void mem_write64(struct Storage *storage, int offset, dword v) {
 	p[offset+7] = ((v >> 0 ) & 0xff);
 }
 
+void set_nia(struct Processor *cpu, dword addr) {
+	if(addr != 0) // for debug
+		cpu->nip = addr;
+}
+
 byte load_opcd(word code) {
 	return ((code >> (31-6+1)) & 0x00000fff);
 }
@@ -251,14 +256,31 @@ int exec(struct Storage *storage, int offset) {
 				cpu.gpr[inst.d.rt] = inst.d.ra + (inst.d.d << 16);
 			}
 			break;
+		case 16:
+			{
+				dword mask = (mode == 64) ? 0xffffffffffffffff : 0x00000000ffffffff;
+				if(!((inst.b.bo >> 2) & 0x01)) { cpu.ctr--; }
+				int ctr_ok = ((inst.b.bo >> 2) & 0x01) | (((cpu.ctr & mask) != 0) ^ ((inst.b.bo >> 1) & 0x01));
+				int cond_ok = ((inst.b.bo >> 4) & 0x01) | (((cpu.cr >> (63-32-inst.b.bi)) & 0x01) == ((inst.b.bo >> 3) & 0x01));
+				if(ctr_ok && cond_ok) {
+					if(inst.b.aa) {
+						set_nia(&cpu, mem_read64(&stack, inst.b.bd << 2));
+					} else {
+						int cia = cpu.nip; // Current-Instruction-Address
+						set_nia(&cpu, mem_read64(&stack, cia + (inst.b.bd << 2)));
+					}
+				}
+				if(inst.b.lk) { cpu.lr = mem_read64(&stack, cpu.nip + 4); }
+				break;
+			}
 		case 19:
 			{
 				int nia = cpu.nip + 4;
 				if((inst.xl.bt & 0x04) != 0x04) { cpu.ctr--; }
 				dword mask = (mode == 64) ? 0xffffffffffffffff : 0x00000000ffffffff;
 				int ctr_ok = ((inst.xl.bt & 0x04) == 0x04) || (((cpu.ctr & mask) != 0) ^ ((inst.xl.bt >> 1) & 0x01));
-				int cond_ok = ((inst.xl.bt >> 4) & 0x01) || ((cpu.cr >> (63-32-inst.xl.ba)) == ((inst.xl.bt >> 3) & 0x01));
-				if(ctr_ok && cond_ok) { cpu.nip = ((cpu.lr >> 2) << 2); }
+				int cond_ok = ((inst.xl.bt >> 4) & 0x01) || (((cpu.cr >> (63-32-inst.xl.ba)) & 0x01) == ((inst.xl.bt >> 3) & 0x01));
+				if(ctr_ok && cond_ok) { set_nia(&cpu, ((cpu.lr >> 2) << 2)); }
 				if(inst.xl.lk == 1) { cpu.lr = nia; }
 				break;
 			}
