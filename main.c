@@ -532,6 +532,9 @@ EXEC_LOOP_END:;
 				}
 			} else if(strncmp(command, "exit", 4) == 0 || strncmp(command, "quit", 4) == 0) {
 				break;
+			} else if(strncmp(command, "\n", 1) == 0) {
+				printf(PROMPT);
+				continue;
 			} else {
 				fprintf(stderr, "error: unknown command\n");
 			}
