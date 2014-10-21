@@ -8,6 +8,11 @@ typedef unsigned int word;
 typedef unsigned short hword;
 typedef unsigned char byte;
 
+hword mem_read16(byte *p, int offset);
+word mem_read32(byte *p, int offset);
+dword mem_read64(byte *p, int offset);
+void mem_write64(byte *p, int offset, dword v);
+
 #define PROMPT "> "
 
 #define EI_NIDENT	16
