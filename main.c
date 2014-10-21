@@ -222,11 +222,13 @@ char *disas(struct Storage *storage, int offset, char *asmcode) {
 	return asmcode;
 }
 
-void syscall(struct Processor *cpu, struct Storage *page) {
+int syscall(struct Processor *cpu, struct Storage *page) {
 	byte *p = page->mem;
+	int ret_code = EXEC_SUCCESS;
 	switch(cpu->gpr[0]) {
 		case 1: // exit
 			printf("info: program exit with status code %ld\n", cpu->gpr[3]);
+			ret_code = EXEC_EXIT;
 			break;
 		case 4: // write
 			switch(cpu->gpr[3]) {
@@ -241,10 +243,13 @@ void syscall(struct Processor *cpu, struct Storage *page) {
 		default:
 			fprintf(stderr, "warning: unimplemented syscall no.%lu\n", cpu->gpr[0]);
 	}
+
+	return ret_code;
 }
 
 int exec(struct Storage *storage, int offset) {
 	const int mode = 64;
+	int ret_code = EXEC_SUCCESS;
 	byte *stack_p = storage->mem + STACK_OFFSET;
 	word code = mem_read32(storage->mem, offset);
 	byte opcd = load_opcd(code);
@@ -287,7 +292,7 @@ int exec(struct Storage *storage, int offset) {
 				break;
 			}
 		case 17:
-			syscall(&cpu, storage);
+			ret_code = syscall(&cpu, storage);
 			break;
 		case 19:
 			{
@@ -349,9 +354,10 @@ int exec(struct Storage *storage, int offset) {
 			}
 			break;
 		default:
-			return -1;
+			ret_code = EXEC_UNDEFINED;
 	}
-	return 0;
+
+	return ret_code;
 }
 
 int main(int argc, char *argv[]) {
@@ -377,11 +383,12 @@ int main(int argc, char *argv[]) {
 			switch(exec(&page, cpu.nip)) {
 				case EXEC_EXIT:
 					goto EXEC_LOOP_END;
+					break;
 				case EXEC_UNDEFINED:
 					{
 						char asmcode[32] = {0};
 						disas(&page, cpu.nip, asmcode);
-//						fprintf(stderr, "warning: undefined instruction `%s`\n", asmcode);
+						fprintf(stderr, "warning: undefined instruction `%s`\n", asmcode);
 						break;
 					}
 				default:

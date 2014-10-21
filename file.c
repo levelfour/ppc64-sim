@@ -103,6 +103,9 @@ int elf_loadfile(Exefile *file, const char *filename, struct Storage *page) {
 		const char *sec_name = (char *)(name_tab + file->sec_h[i].sh_name);
 		dword sh_size = file->sec_h[i].sh_size;
 		dword sh_offset = file->sec_h[i].sh_offset;
+
+//		printf("%.*s\n", 16, sec_name);
+
 		if(strncmp(sec_name, ".text", 5) == 0) {
 			// load text segment
 			page->text_size = sh_size;
