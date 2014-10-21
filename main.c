@@ -6,8 +6,7 @@
 #include "main.h"
 
 struct Processor cpu;
-struct Storage code;
-struct Storage stack;
+struct Storage page;
 
 hword mem_read16(byte *p, int offset);
 word mem_read32(byte *p, int offset);
@@ -26,7 +25,13 @@ long fsize(FILE *fp) {
 	return size;
 }
 
-int elf_loadfile(Exefile *file, const char *filename) {
+int elf_loadfile(Exefile *file, const char *filename, struct Storage *page) {
+	int ret_code = 1;
+	byte *sh_p = NULL;		// section header pointer
+	byte *name_tab = NULL;	// section name table
+	file->sec_h = NULL;
+	page->mem = NULL;
+
 	if((file->fp = fopen(filename, "rb")) == NULL) {
 		fprintf(stderr, "error: no such file '%s'\n", filename);
 		return 0;
@@ -34,13 +39,11 @@ int elf_loadfile(Exefile *file, const char *filename) {
 
 	byte header[sizeof(struct Elf64_header)];
 	fread(header, 1, sizeof(struct Elf64_header), file->fp);
-/*
 	if(memcmp(header, "\x7f""ELF", 4) != 0) {
 		fprintf(stderr, "error: invalid file type\n");
-		fclose(file->fp);
-		return 0;
+		ret_code = 0;
+		goto EL_ALLOC_ERROR;
 	}
-	*/
 
 	memcpy(file->header.e_idnet, header, 16);
 	file->header.e_type		= mem_read16(header, 16);
@@ -57,14 +60,12 @@ int elf_loadfile(Exefile *file, const char *filename) {
 	file->header.e_shnum	= mem_read16(header, 60);
 	file->header.e_shstrndx	= mem_read16(header, 62);
 
-	byte *sh_p = (byte *)malloc(sizeof(struct Elf64_sh) * file->header.e_shnum);
+	sh_p = (byte *)malloc(sizeof(struct Elf64_sh) * file->header.e_shnum);
 	file->sec_h = (struct Elf64_sh*)malloc(sizeof(struct Elf64_sh) * file->header.e_shnum);
 	if(file->sec_h == NULL || sh_p == NULL) {
 		fprintf(stderr, "error: out of memory\n");
-		free(sh_p);
-		free(file->sec_h);
-		fclose(file->fp);
-		return 0;
+		ret_code = 0;
+		goto EL_ALLOC_ERROR;
 	}
 	
 	// read section headers
@@ -90,17 +91,50 @@ int elf_loadfile(Exefile *file, const char *filename) {
 	}
 
 	// analyze section names
-	byte *name_tab = (byte *)malloc(file->header.e_shoff - file->sec_name_tab_off);
+	name_tab = (byte *)malloc(file->header.e_shoff - file->sec_name_tab_off);
+	page->size = SEGMENT_SIZE;
+	page->mem = (void *)malloc(SEGMENT_SIZE);
+	page->offset_addr = 0;
+	if(name_tab == NULL || page->mem == NULL) {
+		fprintf(stderr, "error: out of memory\n");
+		ret_code = 0;
+		goto EL_ALLOC_ERROR;
+	} else {
+		// stack pointer
+		cpu.gpr[1] = STACK_OFFSET;
+		// next instruction pointer
+		cpu.nip = TEXT_OFFSET;
+	}
 	fseek(file->fp, file->sec_name_tab_off, SEEK_SET);
 	fread(name_tab, file->header.e_shoff - file->sec_name_tab_off, 1, file->fp);
 	for(i = 0; i < file->header.e_shnum; i++) {
-		printf("section %.*s\n", 6, name_tab + file->sec_h[i].sh_name);
+		const char *sec_name = (char *)(name_tab + file->sec_h[i].sh_name);
+		dword sh_size = file->sec_h[i].sh_size;
+		dword sh_offset = file->sec_h[i].sh_offset;
+		if(strncmp(sec_name, ".text", 5) == 0) {
+			// load text segment
+			page->text_size = sh_size;
+			fseek(file->fp, sh_offset, SEEK_SET);
+			fread(page->mem + TEXT_OFFSET, sizeof(byte), sh_size, file->fp);
+		} else if(strncmp(sec_name, ".data", 5) == 0) {
+			// load data segment
+			fseek(file->fp, sh_offset, SEEK_SET);
+			fread(page->mem + DATA_OFFSET, sizeof(byte), sh_size, file->fp);
+		}
 	}
 
+	goto EL_RETURN;
+
+EL_ALLOC_ERROR:
+	free(file->sec_h); file->sec_h = NULL;
+	free(page->mem); page->mem = NULL;
+	fclose(file->fp);
+
+EL_RETURN:
 	free(sh_p); sh_p = NULL;
 	free(name_tab); name_tab = NULL;
 
-	return 1;
+	return ret_code;
 }
 
 hword mem_read16(byte *p, int offset) {
@@ -341,6 +375,7 @@ void syscall(struct Processor *cpu, struct Storage *page) {
 
 int exec(struct Storage *storage, int offset) {
 	const int mode = 64;
+	byte *stack_p = storage->mem + STACK_OFFSET;
 	word code = mem_read32(storage->mem, offset);
 	byte opcd = load_opcd(code);
 	union inst_t inst;
@@ -372,17 +407,17 @@ int exec(struct Storage *storage, int offset) {
 				int cond_ok = ((inst.b.bo >> 4) & 0x01) | (((cpu.cr >> (63-32-inst.b.bi)) & 0x01) == ((inst.b.bo >> 3) & 0x01));
 				if(ctr_ok && cond_ok) {
 					if(inst.b.aa) {
-						set_nia(&cpu, mem_read64(stack.mem, inst.b.bd << 2));
+						set_nia(&cpu, mem_read64(stack_p, inst.b.bd << 2));
 					} else {
 						int cia = cpu.nip; // Current-Instruction-Address
-						set_nia(&cpu, mem_read64(stack.mem, cia + (inst.b.bd << 2)));
+						set_nia(&cpu, mem_read64(stack_p, cia + (inst.b.bd << 2)));
 					}
 				}
-				if(inst.b.lk) { cpu.lr = mem_read64(stack.mem, cpu.nip + 4); }
+				if(inst.b.lk) { cpu.lr = mem_read64(stack_p, cpu.nip + 4); }
 				break;
 			}
 		case 17:
-			syscall(&cpu, &stack);
+			syscall(&cpu, storage);
 			break;
 		case 19:
 			{
@@ -420,25 +455,25 @@ int exec(struct Storage *storage, int offset) {
 			break;
 		case 32:
 			// Load-Word
-			cpu.gpr[inst.d.rt] = mem_read32(stack.mem, ((inst.d.ra == 0) ? 0 : inst.d.ra) + inst.d.d);
+			cpu.gpr[inst.d.rt] = mem_read32(stack_p, ((inst.d.ra == 0) ? 0 : inst.d.ra) + inst.d.d);
 			break;
 		case 58:
 			// Load-Doubleword
 			if(inst.ds.xo == 0) {
 				if(inst.ds.ra == 0) {
-					cpu.gpr[inst.ds.rt] = mem_read64(stack.mem, inst.ds.ds << 2);
+					cpu.gpr[inst.ds.rt] = mem_read64(stack_p, inst.ds.ds << 2);
 				} else {
-					cpu.gpr[inst.ds.rt] = mem_read64(stack.mem, cpu.gpr[inst.ds.ra] + (inst.ds.ds << 2));
+					cpu.gpr[inst.ds.rt] = mem_read64(stack_p, cpu.gpr[inst.ds.ra] + (inst.ds.ds << 2));
 				}
 			} else if(inst.ds.xo == 1) {
 				if(inst.ds.ra == 0 || inst.ds.ra == inst.ds.rt) { return -1; }
-				cpu.gpr[inst.ds.rt] = mem_read64(stack.mem, cpu.gpr[inst.ds.ra] + (inst.ds.ds << 2));
+				cpu.gpr[inst.ds.rt] = mem_read64(stack_p, cpu.gpr[inst.ds.ra] + (inst.ds.ds << 2));
 				cpu.gpr[inst.ds.ra] = cpu.gpr[inst.ds.ra] + (inst.ds.ds << 2);
 			}
 			break;
 		case 62:
 			// STore-Doubleword
-			mem_write64(stack.mem, cpu.gpr[inst.ds.ra] + (inst.ds.ds << 2), cpu.gpr[inst.ds.rt]);
+			mem_write64(stack_p, cpu.gpr[inst.ds.ra] + (inst.ds.ds << 2), cpu.gpr[inst.ds.rt]);
 			if(inst.ds.xo == 1) {
 				cpu.gpr[inst.ds.ra] = cpu.gpr[inst.ds.ra] + (inst.ds.ds << 2);
 			}
@@ -461,47 +496,21 @@ int main(int argc, char *argv[]) {
 	}
 
 	Exefile exe;
-	if(!elf_loadfile(&exe, filename)) {
+	if(!elf_loadfile(&exe, filename, &page)) {
 		return EXIT_FAILURE;
-	}
-
-	code.size = fsize(exe.fp);
-	code.mem = (void *)malloc(code.size);
-	code.offset_addr = 0;
-	if(code.mem == NULL) {
-		fprintf(stderr, "error: out of memory\n");
-		fclose(exe.fp);
-		return EXIT_FAILURE;
-	} else {
-		//printf("code size = %ld\n", code.size);
-		fread(code.mem, sizeof(byte), code.size, exe.fp);
 	}
 
 	if(argc == 2) {
 		// exec-mode
-		stack.size = STACK_SIZE;
-		stack.mem = (void *)malloc(stack.size);
-		stack.offset_addr = 0;
-		if(stack.mem == NULL) {
-			fprintf(stderr, "error: out of memory\n");
-			fclose(exe.fp);
-			free(code.mem);
-			return EXIT_FAILURE;
-		} else {
-			//printf("stack size = %ld\n", stack.size);
-			cpu.gpr[1] = STACK_SIZE / 2;
-		}
-
-		// execution loop
-		for(cpu.nip = 0; cpu.nip < code.size; cpu.nip += 4) {
-			word c = mem_read32(code.mem, cpu.nip);
-			switch(exec(&code, cpu.nip)) {
+		for(cpu.nip = 0; cpu.nip < page.text_size; cpu.nip += 4) {
+			word c = mem_read32(page.mem, cpu.nip);
+			switch(exec(&page, cpu.nip)) {
 				case EXEC_EXIT:
 					goto EXEC_LOOP_END;
 				case EXEC_UNDEFINED:
 					{
 						char asmcode[32] = {0};
-						disas(&code, cpu.nip, asmcode);
+						disas(&page, cpu.nip, asmcode);
 //						fprintf(stderr, "warning: undefined instruction `%s`\n", asmcode);
 						break;
 					}
@@ -528,14 +537,12 @@ EXEC_LOOP_END:;
 			}
 			printf(PROMPT);
 		}
-
-		free(stack.mem); stack.mem = NULL;
 	} else {
 		// disassemble-mode
-		for(cpu.nip = 0; cpu.nip < code.size; cpu.nip += 4) {
-			word c = mem_read32(code.mem, cpu.nip);
+		for(cpu.nip = 0; cpu.nip < page.text_size; cpu.nip += 4) {
+			word c = mem_read32(page.mem, cpu.nip);
 			char asmcode[32] = {0};
-			disas(&code, cpu.nip, asmcode);
+			disas(&page, cpu.nip, asmcode);
 			printf("%4lx: %02x %02x %02x %02x    %s\n",
 					cpu.nip,
 					(c >> 24) & 0xff,
@@ -545,7 +552,7 @@ EXEC_LOOP_END:;
 		}
 	}
 
-	free(code.mem); code.mem = NULL;
+	free(page.mem); page.mem = NULL;
 	free(exe.sec_h); exe.sec_h = NULL;
 	fclose(exe.fp);
 

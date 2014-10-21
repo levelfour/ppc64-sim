@@ -13,7 +13,10 @@ typedef unsigned char byte;
 #define EI_NIDENT	16
 #define SHT_STRTAB	3
 
-#define STACK_SIZE 0xffff
+#define SEGMENT_SIZE	0xffffff
+#define TEXT_OFFSET		0x000000
+#define DATA_OFFSET		0x080000
+#define STACK_OFFSET	0x200000
 
 #define EXEC_UNDEFINED	-1
 #define EXEC_SUCCESS	0
@@ -78,6 +81,8 @@ struct Storage {
 	void *mem;
 	// size of storage
 	long size;
+	// size of text segment
+	long text_size;
 	// offset address of memory
 	// ex) offset_addr = 0x80000000
 	// mem[0x1a] stands for the address of 0x8000001a in virtual memory space
@@ -85,7 +90,7 @@ struct Storage {
 };
 
 extern struct Processor cpu;
-extern struct Storage code;
+extern struct Storage page;
 
 /* 
  * I-FORM Instruction
