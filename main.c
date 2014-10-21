@@ -83,10 +83,22 @@ int elf_loadfile(Exefile *file, const char *filename) {
 		file->sec_h[i].sh_info		= mem_read32(p, 44);
 		file->sec_h[i].sh_addralign	= mem_read64(p, 48);
 		file->sec_h[i].sh_entsize	= mem_read64(p, 56);
+		if(file->sec_h[i].sh_type == SHT_STRTAB) {
+			// section name table
+			file->sec_name_tab_off = file->sec_h[i].sh_offset;
+		}
 	}
 
-	free(sh_p);
-	free(file->sec_h);
+	// analyze section names
+	byte *name_tab = (byte *)malloc(file->header.e_shoff - file->sec_name_tab_off);
+	fseek(file->fp, file->sec_name_tab_off, SEEK_SET);
+	fread(name_tab, file->header.e_shoff - file->sec_name_tab_off, 1, file->fp);
+	for(i = 0; i < file->header.e_shnum; i++) {
+		printf("section %.*s\n", 6, name_tab + file->sec_h[i].sh_name);
+	}
+
+	free(sh_p); sh_p = NULL;
+	free(name_tab); name_tab = NULL;
 
 	return 1;
 }
@@ -461,7 +473,7 @@ int main(int argc, char *argv[]) {
 		fclose(exe.fp);
 		return EXIT_FAILURE;
 	} else {
-		printf("code size = %ld\n", code.size);
+		//printf("code size = %ld\n", code.size);
 		fread(code.mem, sizeof(byte), code.size, exe.fp);
 	}
 
@@ -476,7 +488,7 @@ int main(int argc, char *argv[]) {
 			free(code.mem);
 			return EXIT_FAILURE;
 		} else {
-			printf("stack size = %ld\n", stack.size);
+			//printf("stack size = %ld\n", stack.size);
 			cpu.gpr[1] = STACK_SIZE / 2;
 		}
 
@@ -534,7 +546,7 @@ EXEC_LOOP_END:;
 	}
 
 	free(code.mem); code.mem = NULL;
-	free(exe.sec_h);
+	free(exe.sec_h); exe.sec_h = NULL;
 	fclose(exe.fp);
 
 	return EXIT_SUCCESS;

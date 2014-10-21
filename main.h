@@ -11,6 +11,7 @@ typedef unsigned char byte;
 #define PROMPT "> "
 
 #define EI_NIDENT	16
+#define SHT_STRTAB	3
 
 #define STACK_SIZE 0xffff
 
@@ -51,6 +52,7 @@ struct Elf64_sh {
 typedef struct {
 	struct Elf64_header header;
 	struct Elf64_sh *sec_h;
+	byte sec_name_tab_off;
 	FILE *fp;
 } Exefile;
 
