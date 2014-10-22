@@ -16,7 +16,9 @@ void mem_write64(byte *p, int offset, dword v);
 #define PROMPT "> "
 
 #define EI_NIDENT	16
+#define SHT_SYMTAB	2
 #define SHT_STRTAB	3
+#define SHT_RELA	4
 
 #define SEGMENT_SIZE	0xffffff
 #define TEXT_OFFSET		0x000000
@@ -27,7 +29,7 @@ void mem_write64(byte *p, int offset, dword v);
 #define EXEC_SUCCESS	0
 #define EXEC_EXIT		(1 << 8)
 
-struct Elf64_header {
+typedef struct {
 	byte	e_idnet[EI_NIDENT];	/* ELF identification */
 	hword	e_type;				/* Object file type */
 	hword	e_machine;			/* Machine type */
@@ -42,9 +44,9 @@ struct Elf64_header {
 	hword	e_shentsize;		/* Size of section header entry */
 	hword	e_shnum;			/* Number of section header entries */
 	hword	e_shstrndx;			/* Section name string table index */
-};
+} Elf64_header;
 
-struct Elf64_sh {
+typedef struct {
 	word	sh_name;        /* section name */
 	word	sh_type;        /* section type */
 	dword	sh_flags;       /* section flags */
@@ -55,12 +57,35 @@ struct Elf64_sh {
 	word	sh_info;        /* misc info */
 	dword	sh_addralign;   /* memory alignment */
 	dword	sh_entsize;     /* table entry size */
-};  
+} Elf64_sh ; 
+
+// symbol data
+typedef struct {
+	word	st_name;	/* index for symbol name table */
+	byte	st_info;
+	byte	st_other;	/* reserved */
+	hword	st_shndx;
+	dword	st_value;
+	dword	st_size;
+} Elf64_Sym;
+
+// relocation info
+typedef struct {
+	dword	r_offset;
+	dword	r_info;
+} Elf64_Rel;
+
+// relocation info with addend
+typedef struct {
+	dword	r_offset;
+	dword	r_info;
+	dword	r_addend;
+} Elf64_Rela;
 
 typedef struct {
-	struct Elf64_header header;
-	struct Elf64_sh *sec_h;
-	byte sec_name_tab_off;
+	Elf64_header header;
+	Elf64_sh *sec_h;
+	dword sec_name_tab_off;
 	FILE *fp;
 } Exefile;
 
