@@ -64,6 +64,7 @@ int elf_loadfile(Exefile *file, const char *filename, struct Storage *page) {
 	int i;
 	fseek(file->fp, file->header.e_shoff, SEEK_SET);
 	fread(sh_p, sizeof(struct Elf64_sh) * file->header.e_shnum, sizeof(byte), file->fp);
+	file->sec_name_tab_off = 0;
 	for(i = 0; i < file->header.e_shnum; i++) {
 		byte *p = sh_p + sizeof(struct Elf64_sh) * i;
 		file->sec_h[i].sh_name		= mem_read32(p, 0);
@@ -76,7 +77,7 @@ int elf_loadfile(Exefile *file, const char *filename, struct Storage *page) {
 		file->sec_h[i].sh_info		= mem_read32(p, 44);
 		file->sec_h[i].sh_addralign	= mem_read64(p, 48);
 		file->sec_h[i].sh_entsize	= mem_read64(p, 56);
-		if(file->sec_h[i].sh_type == SHT_STRTAB) {
+		if(file->sec_name_tab_off == 0 && file->sec_h[i].sh_type == SHT_STRTAB) {
 			// section name table
 			file->sec_name_tab_off = file->sec_h[i].sh_offset;
 		}
@@ -104,7 +105,7 @@ int elf_loadfile(Exefile *file, const char *filename, struct Storage *page) {
 		dword sh_size = file->sec_h[i].sh_size;
 		dword sh_offset = file->sec_h[i].sh_offset;
 
-//		printf("%.*s\n", 16, sec_name);
+		printf("%.*s %lx\n", 16, sec_name, sh_offset);
 
 		if(strncmp(sec_name, ".text", 5) == 0) {
 			// load text segment
