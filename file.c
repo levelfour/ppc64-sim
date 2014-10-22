@@ -19,9 +19,9 @@ long fsize(FILE *fp) {
 
 int elf_loadfile(Exefile *file, const char *filename, struct Storage *page) {
 	int ret_code = 1;
-	byte *sh_p = NULL;			// section header pointer
-	byte *name_tab = NULL;		// section name table
-	Elf64_Rela *rels = NULL;	// relocation infos
+	int shnamendx = 0;			// section header name table index 
+	int shstrndx = 0;			// symbol name section index
+	byte *p = NULL;				// pointer to file contents
 	file->sec_h = NULL;
 	page->mem = NULL;
 
@@ -33,6 +33,7 @@ int elf_loadfile(Exefile *file, const char *filename, struct Storage *page) {
 	byte header[sizeof(Elf64_header)];
 	fread(header, 1, sizeof(Elf64_header), file->fp);
 	if(memcmp(header, "\x7f""ELF", 4) != 0) {
+		// check ELF magic code
 		fprintf(stderr, "error: invalid file type\n");
 		ret_code = 0;
 		goto EL_ALLOC_ERROR;
@@ -53,9 +54,9 @@ int elf_loadfile(Exefile *file, const char *filename, struct Storage *page) {
 	file->header.e_shnum	= mem_read16(header, 60);
 	file->header.e_shstrndx	= mem_read16(header, 62);
 
-	sh_p = (byte *)malloc(sizeof(Elf64_sh) * file->header.e_shnum);
+	p = (byte *)malloc(fsize(file->fp));
 	file->sec_h = (Elf64_sh *)malloc(sizeof(Elf64_sh) * file->header.e_shnum);
-	if(file->sec_h == NULL || sh_p == NULL) {
+	if(file->sec_h == NULL || p == NULL) {
 		fprintf(stderr, "error: out of memory\n");
 		ret_code = 0;
 		goto EL_ALLOC_ERROR;
@@ -63,50 +64,42 @@ int elf_loadfile(Exefile *file, const char *filename, struct Storage *page) {
 	
 	// read section headers
 	int i;
-	fseek(file->fp, file->header.e_shoff, SEEK_SET);
-	fread(sh_p, sizeof(Elf64_sh) * file->header.e_shnum, sizeof(byte), file->fp);
-	file->sec_name_tab_off = 0;
+	fseek(file->fp, 0, SEEK_SET);
+	fread(p, fsize(file->fp), sizeof(byte), file->fp);
 	for(i = 0; i < file->header.e_shnum; i++) {
-		byte *p = sh_p + sizeof(Elf64_sh) * i;
-		file->sec_h[i].sh_name		= mem_read32(p, 0);
-		file->sec_h[i].sh_type		= mem_read32(p, 4);
-		file->sec_h[i].sh_flags		= mem_read64(p, 8);
-		file->sec_h[i].sh_addr		= mem_read64(p, 16);
-		file->sec_h[i].sh_offset	= mem_read64(p, 24);
-		file->sec_h[i].sh_size		= mem_read64(p, 32);
-		file->sec_h[i].sh_link		= mem_read32(p, 40);
-		file->sec_h[i].sh_info		= mem_read32(p, 44);
-		file->sec_h[i].sh_addralign	= mem_read64(p, 48);
-		file->sec_h[i].sh_entsize	= mem_read64(p, 56);
+		byte *q = p + file->header.e_shoff + sizeof(Elf64_sh) * i;
+		file->sec_h[i].sh_name		= mem_read32(q, 0);
+		file->sec_h[i].sh_type		= mem_read32(q, 4);
+		file->sec_h[i].sh_flags		= mem_read64(q, 8);
+		file->sec_h[i].sh_addr		= mem_read64(q, 16);
+		file->sec_h[i].sh_offset	= mem_read64(q, 24);
+		file->sec_h[i].sh_size		= mem_read64(q, 32);
+		file->sec_h[i].sh_link		= mem_read32(q, 40);
+		file->sec_h[i].sh_info		= mem_read32(q, 44);
+		file->sec_h[i].sh_addralign	= mem_read64(q, 48);
+		file->sec_h[i].sh_entsize	= mem_read64(q, 56);
 
-		if(file->sec_name_tab_off == 0 && file->sec_h[i].sh_type == SHT_STRTAB) {
-			// section name table
-			file->sec_name_tab_off = file->sec_h[i].sh_offset;
+		if(file->sec_h[i].sh_type == SHT_STRTAB && file->sec_h[i].sh_type != file->header.e_shstrndx) {
+			// symbol name table section
+			shstrndx = file->sec_h[i].sh_type;
 		} else if(file->sec_h[i].sh_type == SHT_RELA) {
 			// relocation info section
 			int rel_off = file->sec_h[i].sh_offset;
 			int rel_n = file->sec_h[i].sh_size / sizeof(Elf64_Rela);
-			if((rels = (Elf64_Rela *)malloc(rel_n * sizeof(Elf64_Rela))) == NULL) {
-				fprintf(stderr, "error: out of memory\n");
-				ret_code = 0;
-				goto EL_ALLOC_ERROR;
-			}
-			fseek(file->fp, rel_off, SEEK_SET);
-			fread(rels, sizeof(Elf64_Rela), rel_n, file->fp);
-
 			int i;
+			Elf64_Rel *rels = (Elf64_Rel *)(p + rel_off);
 			for(i = 0; i < rel_n; i++) {
-				printf("offset=%lx, info=%ld\n", rels[i].r_offset, rels[i].r_info);
+				printf("offset=0x%lx, info=0x%lx\n", rels[i].r_offset, rels[i].r_info);
 			}
 		}
 	}
 
 	// analyze section names
-	name_tab = (byte *)malloc(file->header.e_shoff - file->sec_name_tab_off);
+	shnamendx = file->header.e_shstrndx;
 	page->size = SEGMENT_SIZE;
 	page->mem = (void *)malloc(SEGMENT_SIZE);
 	page->offset_addr = 0;
-	if(name_tab == NULL || page->mem == NULL) {
+	if(page->mem == NULL) {
 		fprintf(stderr, "error: out of memory\n");
 		ret_code = 0;
 		goto EL_ALLOC_ERROR;
@@ -116,8 +109,7 @@ int elf_loadfile(Exefile *file, const char *filename, struct Storage *page) {
 		// next instruction pointer
 		cpu.nip = TEXT_OFFSET;
 	}
-	fseek(file->fp, file->sec_name_tab_off, SEEK_SET);
-	fread(name_tab, file->header.e_shoff - file->sec_name_tab_off, 1, file->fp);
+	byte *name_tab = p + file->sec_h[shnamendx].sh_offset;
 	for(i = 0; i < file->header.e_shnum; i++) {
 		const char *sec_name = (char *)(name_tab + file->sec_h[i].sh_name);
 		dword sh_size = file->sec_h[i].sh_size;
@@ -128,12 +120,10 @@ int elf_loadfile(Exefile *file, const char *filename, struct Storage *page) {
 		if(strncmp(sec_name, ".text", 5) == 0) {
 			// load text segment
 			page->text_size = sh_size;
-			fseek(file->fp, sh_offset, SEEK_SET);
-			fread(page->mem + TEXT_OFFSET, sizeof(byte), sh_size, file->fp);
+			memcpy(page->mem + TEXT_OFFSET, p + sh_offset, sh_size);
 		} else if(strncmp(sec_name, ".data", 5) == 0) {
 			// load data segment
-			fseek(file->fp, sh_offset, SEEK_SET);
-			fread(page->mem + DATA_OFFSET, sizeof(byte), sh_size, file->fp);
+			memcpy(page->mem + DATA_OFFSET, p + sh_offset, sh_size);
 		}
 	}
 
@@ -145,9 +135,7 @@ EL_ALLOC_ERROR:
 	fclose(file->fp);
 
 EL_RETURN:
-	free(sh_p); sh_p = NULL;
-	free(rels); rels = NULL;
-	free(name_tab); name_tab = NULL;
+	free(p); p = NULL;
 
 	return ret_code;
 }

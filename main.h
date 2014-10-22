@@ -62,9 +62,9 @@ typedef struct {
 // symbol data
 typedef struct {
 	word	st_name;	/* index for symbol name table */
-	byte	st_info;
+	byte	st_info;	/* misc info of symbol */
 	byte	st_other;	/* reserved */
-	hword	st_shndx;
+	hword	st_shndx;	/* section index */
 	dword	st_value;
 	dword	st_size;
 } Elf64_Sym;
@@ -85,7 +85,6 @@ typedef struct {
 typedef struct {
 	Elf64_header header;
 	Elf64_sh *sec_h;
-	dword sec_name_tab_off;
 	FILE *fp;
 } Exefile;
 
