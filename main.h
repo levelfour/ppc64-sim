@@ -16,6 +16,8 @@ void mem_write64(byte *p, int offset, dword v);
 
 #define PROMPT "> "
 
+#define INST_SIZE	0x20
+
 #define EI_NIDENT	16
 #define SHT_SYMTAB	2
 #define SHT_STRTAB	3

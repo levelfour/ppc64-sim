@@ -207,7 +207,21 @@ void elf_show_rel(Exefile *file, int n) {
 	}
 	Elf64_Rela *r = &file->rels[n];
 	Elf64_Sym *s = &file->syms[r->r_info & 0xffffff];
-	printf("rel[%d] .text + 0x%02lx -> %s + 0x%02lx\n", n, r->r_offset, name_tab + file->sec_h[s->st_shndx].sh_name, r->r_addend);
+	printf("rel[%d] .text + 0x%02lx -> %s + 0x%02lx\n",
+			n,
+			r->r_offset,
+			name_tab + file->sec_h[s->st_shndx].sh_name,
+			r->r_addend);
 
 	free(name_tab); name_tab = NULL;
+}
+
+int elf_rel_index(Exefile *file, dword addr) {
+	int i;
+	for(i = 0; i < file->rel_n; i++) {
+		if(addr <= file->rels[i].r_offset && file->rels[i].r_offset < addr + INST_SIZE) {
+			return i;
+		}
+	}
+	return -1;
 }
