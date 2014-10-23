@@ -206,7 +206,7 @@ void elf_show_rel(Exefile *file, int n) {
 		fread(name_tab, file->sec_h[file->sec_name_i].sh_size, sizeof(byte), file->fp);
 	}
 	Elf64_Rela *r = &file->rels[n];
-	Elf64_Sym *s = &file->syms[r->r_info & 0xffffff];
+	Elf64_Sym *s = &file->syms[r->r_info >> 32];
 	printf("rel[%d] .text + 0x%02lx -> %s + 0x%02lx\n",
 			n,
 			r->r_offset,
