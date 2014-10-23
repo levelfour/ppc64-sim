@@ -226,7 +226,7 @@ char *disas(struct Storage *storage, int offset, char *asmcode) {
 	return asmcode;
 }
 
-int syscall(struct Processor *cpu, struct Storage *page) {
+int syscall(Exefile *file, struct Processor *cpu, struct Storage *page) {
 	byte *p = page->mem;
 	int ret_code = EXEC_SUCCESS;
 	switch(cpu->gpr[0]) {
@@ -238,7 +238,7 @@ int syscall(struct Processor *cpu, struct Storage *page) {
 			switch(cpu->gpr[3]) {
 				case 1:
 				case 2:
-					printf("%.*s", (int)(cpu->gpr[5]), p + cpu->gpr[4]);
+					printf("%.*s", (int)(cpu->gpr[5]), p + DATA_OFFSET + cpu->gpr[4]);
 					break;
 				default:
 					fprintf(stderr, "warning: general file-descriptor is not already supported.\n");
@@ -251,7 +251,7 @@ int syscall(struct Processor *cpu, struct Storage *page) {
 	return ret_code;
 }
 
-int exec(struct Storage *storage, int offset) {
+int exec(Exefile *file, struct Storage *storage, int offset) {
 	const int mode = 64;
 	int ret_code = EXEC_SUCCESS;
 	byte *stack_p = storage->mem + STACK_OFFSET;
@@ -296,7 +296,7 @@ int exec(struct Storage *storage, int offset) {
 				break;
 			}
 		case 17:
-			ret_code = syscall(&cpu, storage);
+			ret_code = syscall(file, &cpu, storage);
 			break;
 		case 19:
 			{
@@ -384,7 +384,7 @@ int main(int argc, char *argv[]) {
 		// exec-mode
 		for(cpu.nip = 0; cpu.nip < page.text_size; cpu.nip += 4) {
 			word c = mem_read32(page.mem, cpu.nip);
-			switch(exec(&page, cpu.nip)) {
+			switch(exec(&exe, &page, cpu.nip)) {
 				case EXEC_EXIT:
 					goto EXEC_LOOP_END;
 					break;

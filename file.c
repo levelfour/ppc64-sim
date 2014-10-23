@@ -132,16 +132,18 @@ int elf_loadfile(Exefile *file, const char *filename, struct Storage *page) {
 		dword sh_size = file->sec_h[i].sh_size;
 		dword sh_offset = file->sec_h[i].sh_offset;
 
-//		printf("%8.*s\ttype=%d\toffset=0x%lx\tsize=0x%lx\n", 16, sec_name, file->sec_h[i].sh_type, sh_offset, file->sec_h[i].sh_size);
-
 		if(strncmp(sec_name, ".text", 5) == 0) {
 			// load text segment
 			page->text_size = sh_size;
 			memcpy(page->mem + TEXT_OFFSET, p + sh_offset, sh_size);
+			file->sec_h[i].sh_addr = TEXT_OFFSET;
 		} else if(strncmp(sec_name, ".data", 5) == 0) {
 			// load data segment
 			memcpy(page->mem + DATA_OFFSET, p + sh_offset, sh_size);
+			file->sec_h[i].sh_addr = DATA_OFFSET;
 		}
+
+//		printf("%8.*s\ttype=%d\toffset=0x%lx\tsize=0x%lx\taddr=%lx\n", 16, sec_name, file->sec_h[i].sh_type, sh_offset, file->sec_h[i].sh_size, file->sec_h[i].sh_addr);
 	}
 
 	// analyze symbols
@@ -224,4 +226,11 @@ int elf_rel_index(Exefile *file, dword addr) {
 		}
 	}
 	return -1;
+}
+
+dword elf_relocate(Exefile *file, int n) {
+	Elf64_Rela *r = &file->rels[n];
+	Elf64_Sym *sym = &file->syms[r->r_info >> 32];
+	Elf64_sh *s = &file->sec_h[sym->st_shndx];
+	return s->sh_addr + r->r_addend;
 }
