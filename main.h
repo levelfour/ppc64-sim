@@ -8,6 +8,7 @@ typedef unsigned int word;
 typedef unsigned short hword;
 typedef unsigned char byte;
 
+byte mem_read8(byte *p, int offset);
 hword mem_read16(byte *p, int offset);
 word mem_read32(byte *p, int offset);
 dword mem_read64(byte *p, int offset);
@@ -83,8 +84,13 @@ typedef struct {
 } Elf64_Rela;
 
 typedef struct {
-	Elf64_header header;
-	Elf64_sh *sec_h;
+	Elf64_header header;	/* ELF header */
+	Elf64_sh *sec_h;		/* section header */
+	Elf64_Rela *rels;		/* relocation data */
+	int sec_name_i;			/* section name table index */
+	int rel_n;				/* num of reloc info */
+	Elf64_Sym *syms;		/* symbol table */
+	int sym_n;				/* num of symbols */
 	FILE *fp;
 } Exefile;
 

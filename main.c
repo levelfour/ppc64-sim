@@ -7,6 +7,10 @@
 struct Processor cpu;
 struct Storage page;
 
+byte mem_read8(byte *p, int offset) {
+	return p[offset];
+}
+
 hword mem_read16(byte *p, int offset) {
 	return (
 		(p[offset+0] << 0x08) |
@@ -434,6 +438,8 @@ EXEC_LOOP_END:;
 
 	free(page.mem); page.mem = NULL;
 	free(exe.sec_h); exe.sec_h = NULL;
+	free(exe.rels); exe.rels = NULL;
+	free(exe.syms); exe.syms = NULL;
 	fclose(exe.fp);
 
 	return EXIT_SUCCESS;
