@@ -202,7 +202,7 @@ void elf_show_rel(Exefile *file, int n) {
 		fprintf(stderr, "error: out of memory\n");
 		return;
 	} else {
-		fseek(file->fp, 0, SEEK_SET);
+		fseek(file->fp, file->sec_h[file->sec_name_i].sh_offset, SEEK_SET);
 		fread(name_tab, file->sec_h[file->sec_name_i].sh_size, sizeof(byte), file->fp);
 	}
 	Elf64_Rela *r = &file->rels[n];
