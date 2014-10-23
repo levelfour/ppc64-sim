@@ -226,7 +226,7 @@ char *disas(struct Storage *storage, int offset, char *asmcode) {
 	return asmcode;
 }
 
-int syscall(Exefile *file, struct Processor *cpu, struct Storage *page) {
+int syscall(struct Processor *cpu, struct Storage *page) {
 	byte *p = page->mem;
 	int ret_code = EXEC_SUCCESS;
 	switch(cpu->gpr[0]) {
@@ -238,7 +238,7 @@ int syscall(Exefile *file, struct Processor *cpu, struct Storage *page) {
 			switch(cpu->gpr[3]) {
 				case 1:
 				case 2:
-					printf("%.*s", (int)(cpu->gpr[5]), p + DATA_OFFSET + cpu->gpr[4]);
+					printf("%.*s", (int)(cpu->gpr[5]), p + cpu->gpr[4]);
 					break;
 				default:
 					fprintf(stderr, "warning: general file-descriptor is not already supported.\n");
@@ -254,6 +254,7 @@ int syscall(Exefile *file, struct Processor *cpu, struct Storage *page) {
 int exec(Exefile *file, struct Storage *storage, int offset) {
 	const int mode = 64;
 	int ret_code = EXEC_SUCCESS;
+	int rel_i = elf_rel_index(file, cpu.nip);
 	byte *stack_p = storage->mem + STACK_OFFSET;
 	word code = mem_read32(storage->mem, offset);
 	byte opcd = load_opcd(code);
@@ -263,20 +264,26 @@ int exec(Exefile *file, struct Storage *storage, int offset) {
 	switch(opcd) {
 		case 14:
 			// Add-Immediate
-			if(inst.d.ra == 0) {
-				cpu.gpr[inst.d.rt] = inst.d.d;
-			} else {
-				cpu.gpr[inst.d.rt] = cpu.gpr[inst.d.ra] + inst.d.d;
+			{
+				dword si = ((rel_i == -1) ? inst.d.d : elf_relocate(file, rel_i)) & 0xffff;
+				if(inst.d.ra == 0) {
+					cpu.gpr[inst.d.rt] = si;
+				} else {
+					cpu.gpr[inst.d.rt] = cpu.gpr[inst.d.ra] + si;
+				}
+				break;
 			}
-			break;
 		case 15:
 			// Add-Immediate-Shifted
-			if(inst.d.ra == 0) {
-				cpu.gpr[inst.d.rt] = inst.d.d << 16;
-			} else {
-				cpu.gpr[inst.d.rt] = inst.d.ra + (inst.d.d << 16);
+			{
+				dword si = ((rel_i == -1) ? inst.d.d : elf_relocate(file, rel_i)) >> 16;
+				if(inst.d.ra == 0) {
+					cpu.gpr[inst.d.rt] = si << 16;
+				} else {
+					cpu.gpr[inst.d.rt] = inst.d.ra + (si << 16);
+				}
+				break;
 			}
-			break;
 		case 16:
 			{
 				// Branch
@@ -296,7 +303,7 @@ int exec(Exefile *file, struct Storage *storage, int offset) {
 				break;
 			}
 		case 17:
-			ret_code = syscall(file, &cpu, storage);
+			ret_code = syscall(&cpu, storage);
 			break;
 		case 19:
 			{

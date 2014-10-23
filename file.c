@@ -209,11 +209,13 @@ void elf_show_rel(Exefile *file, int n) {
 	}
 	Elf64_Rela *r = &file->rels[n];
 	Elf64_Sym *s = &file->syms[r->r_info >> 32];
+	/*
 	printf("rel[%d] .text + 0x%02lx -> %s + 0x%02lx\n",
 			n,
 			r->r_offset,
 			name_tab + file->sec_h[s->st_shndx].sh_name,
 			r->r_addend);
+			*/
 
 	free(name_tab); name_tab = NULL;
 }
