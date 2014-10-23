@@ -205,6 +205,15 @@ char *disas(struct Storage *storage, int offset, char *asmcode) {
 		case 32:
 			sprintf(asmcode, "lwz\tr%d,%d(r%d)", inst.d.rt, inst.d.d, inst.d.ra);
 			break;
+		case 33:
+			sprintf(asmcode, "lwzu\tr%d,%d(r%d)", inst.d.rt, inst.d.d, inst.d.ra);
+			break;
+		case 34:
+			sprintf(asmcode, "lbz\tr%d,%d(r%d)", inst.d.rt, inst.d.d, inst.d.ra);
+			break;
+		case 35:
+			sprintf(asmcode, "lbzu\tr%d,%d(r%d)", inst.d.rt, inst.d.d, inst.d.ra);
+			break;
 		case 58:
 			if(inst.ds.xo == 0) {
 				sprintf(asmcode, "ld\t\tr%d,%d(r%d)", inst.ds.rt, inst.ds.ds << 2, inst.ds.ra);
@@ -340,8 +349,22 @@ int exec(Exefile *file, struct Storage *storage, int offset) {
 			}
 			break;
 		case 32:
-			// Load-Word
-			cpu.gpr[inst.d.rt] = mem_read32(stack_p, ((inst.d.ra == 0) ? 0 : inst.d.ra) + inst.d.d);
+			// Load-Word-and-Zero
+			cpu.gpr[inst.d.rt] = mem_read32(stack_p, ((inst.d.ra == 0) ? 0 : cpu.gpr[inst.d.ra]) + inst.d.d);
+			break;
+		case 33:
+			// Load-Word-and-Zero-with-Update
+			cpu.gpr[inst.d.rt] = mem_read32(stack_p, cpu.gpr[inst.d.ra] + inst.d.d);
+			cpu.gpr[inst.d.ra] = cpu.gpr[inst.d.ra] + inst.d.d;
+			break;
+		case 34:
+			// Load-Byte-and-Zero
+			cpu.gpr[inst.d.rt] = mem_read8(stack_p, ((inst.d.ra == 0) ? 0 : cpu.gpr[inst.d.ra]) + inst.d.d);
+			break;
+		case 35:
+			// Load-Byte-and-Zero-with-Update
+			cpu.gpr[inst.d.rt] = mem_read8(stack_p, cpu.gpr[inst.d.ra] + inst.d.d);
+			cpu.gpr[inst.d.ra] = cpu.gpr[inst.d.ra] + inst.d.d;
 			break;
 		case 58:
 			// Load-Doubleword
