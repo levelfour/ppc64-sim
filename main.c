@@ -49,8 +49,8 @@ void mem_write64(byte *p, int offset, dword v) {
 }
 
 void set_nia(struct Processor *cpu, dword addr) {
-	if(addr != 0) // for debug
-		cpu->nip = addr;
+	//if(addr != 0)
+	cpu->nip = addr;
 }
 
 byte load_opcd(word code) {
@@ -286,17 +286,17 @@ int exec(Exefile *file, struct Storage *storage, int offset) {
 			}
 		case 16:
 			{
-				// Branch
+				// Branch-Conditional
 				dword mask = (mode == 64) ? 0xffffffffffffffff : 0x00000000ffffffff;
 				if(!((inst.b.bo >> 2) & 0x01)) { cpu.ctr--; }
 				int ctr_ok = ((inst.b.bo >> 2) & 0x01) | (((cpu.ctr & mask) != 0) ^ ((inst.b.bo >> 1) & 0x01));
 				int cond_ok = ((inst.b.bo >> 4) & 0x01) | (((cpu.cr >> (63-32-inst.b.bi)) & 0x01) == ((inst.b.bo >> 3) & 0x01));
 				if(ctr_ok && cond_ok) {
 					if(inst.b.aa) {
-						set_nia(&cpu, mem_read64(stack_p, inst.b.bd << 2));
+						set_nia(&cpu, mem_read64(stack_p, (inst.b.bd << 18) >> 16));
 					} else {
 						int cia = cpu.nip; // Current-Instruction-Address
-						set_nia(&cpu, mem_read64(stack_p, cia + (inst.b.bd << 2)));
+						set_nia(&cpu, mem_read64(stack_p, cia + ((inst.b.bd << 18) >> 16)));
 					}
 				}
 				if(inst.b.lk) { cpu.lr = mem_read64(stack_p, cpu.nip + 4); }
@@ -307,7 +307,7 @@ int exec(Exefile *file, struct Storage *storage, int offset) {
 			break;
 		case 19:
 			{
-				// Branch-Conditional
+				// Branch-Conditional-to-Link-Register
 				int nia = cpu.nip + 4;
 				if((inst.xl.bt & 0x04) != 0x04) { cpu.ctr--; }
 				dword mask = (mode == 64) ? 0xffffffffffffffff : 0x00000000ffffffff;
